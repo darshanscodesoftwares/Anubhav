@@ -55,6 +55,8 @@ Owner request: append an entry here after every change session.
   Built nav, progress rail, petals, loader, SplitText reveals, directional fabric shader, Lenis snapping,
   mobile crop + scrims, collections grid + footer. Verified headless Chrome desktop 1440×860 + mobile 390×844:
   snapping exact, transitions render, no console errors, sway only in fabric. Removed old vanilla files.
+- **2026‑11‑04** — First commits on `main`, split by concern: design assets → scaffold → hero plates →
+  WebGL renderer → Lenis → pinned hero → nav/loader/collections → docs. Not pushed (no remote action taken).
 
 ## Next / ideas
 
