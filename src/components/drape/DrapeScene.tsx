@@ -515,7 +515,7 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
     U.uHold.value = S.hold;
 
     // Resting on another bundle? Find the one underneath and let the overhang sag around its edge.
-    let support: { sx: number; sz: number; dyaw: number } | null = null;
+    let support: { sx: number; sz: number; dyaw: number; px: number; pz: number } | null = null;
     if (!hovering.current && !held && lv.y > -1.5) {
       const ap = body.translation();
       const ay = tmp.e.setFromQuaternion(tmp.q.set(r.x, r.y, r.z, r.w), 'YXZ').y;
@@ -532,13 +532,22 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
         const cb = Math.cos(by), sb = Math.sin(by);
         const mx = -wx * cb - wz * sb, mz = wx * sb - wz * cb;
         if (Math.abs(mx) > half.x * 1.9 * s || Math.abs(mz) > half.z * 1.9 * s) return;
-        support = { sx: (wx * ca - wz * sa) / s, sz: (wx * sa + wz * ca) / s, dyaw: by - ay };
+        // centre of mass past the lower bundle's edge → it can't balance there and slides off (physics stays yaw-locked,
+        // so this is a push away from the ledge instead of a tip-over)
+        const ox = Math.sign(mx) * Math.max(0, Math.abs(mx) - half.x * s * 0.9);
+        const oz = Math.sign(mz) * Math.max(0, Math.abs(mz) - half.z * s * 0.9);
+        support = { sx: (wx * ca - wz * sa) / s, sz: (wx * sa + wz * ca) / s, dyaw: by - ay, px: ox * cb - oz * sb, pz: ox * sb + oz * cb };
       });
     }
-    const sup = support as { sx: number; sz: number; dyaw: number } | null;
+    const sup = support as { sx: number; sz: number; dyaw: number; px: number; pz: number } | null;
     if (sup) {
       U.uSup.value.set(sup.sx, sup.sz, half.x, half.z);
       U.uSupRot.value.set(Math.cos(sup.dyaw), Math.sin(sup.dyaw));
+      const over = Math.hypot(sup.px, sup.pz);
+      if (over > 0.02) {
+        const k = Math.min(1, over / (0.3 * s)) * 30 * body.mass() * dt / over;
+        body.applyImpulse({ x: sup.px * k, y: 0, z: sup.pz * k }, true);
+      }
     }
     [S.drape, S.drapeV] = springStep(S.drape, S.drapeV, sup ? 1 : 0, 46, 9, dt);
     U.uSag.value = Math.max(0, S.drape);

@@ -249,6 +249,7 @@ Owner request: append an entry here after every change session.
   down both side walls — clamp with `Math.max(0, …)` (found by bisecting: no shape → no slivers).
 - **2026‑11‑05** — Cursor push field made stronger (owner: "make it stronger"): `R` 1.9→2.3·s, base push 3.2→7.5 m/s², cursor-velocity coupling 0.22→0.5 (`DrapeScene.tsx`). Levitation spring still eases sarees back; headless run: no console errors.
 - **2026‑11‑05** — Owner: saree shadows landed inside nearby petals as a grey lens. Same cause as the earlier petal-cup bug: saree floor shadow sprites sat at y≈0.004 and cut through the cupped petal. `ShadowBlob` now defaults to `y = -0.14` for every body (the floor is invisible, so sprites sit below all petals); petals occlude the shadow instead of being cut by it. Trade-off: saree shadows don't darken petals.
+- **2026‑11‑05** — Owner: a saree placed on a slight ledge of another floated there. Bundles are yaw-locked, so they can't tip; the support check in `Bundle` now also measures how far my centre is past the lower bundle's footprint edge (0.9 × half-extent, in its frame) and, when it is, pushes the bundle off the ledge (30 m/s² ramped over 0.3·s of overhang, beats friction 1.25·14) until it clears and drops. Verified by teleport test: centre 1.3 past → slid off and landed on the floor (y 0.18); centred on top → stayed (y 0.80). Tune: `0.9`, `30`.
 
 ## Next / ideas
 
