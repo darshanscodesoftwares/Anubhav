@@ -65,6 +65,7 @@ export function DrapeSection() {
   const [canPlay] = useState(() => hasWebGL() && !prefersReducedMotion());
   const [filter, setFilter] = useState<Tag | null>(null);
   const [sceneKey, setSceneKey] = useState(0);
+  const arcs = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const el = root.current!;
@@ -130,12 +131,28 @@ export function DrapeSection() {
         {canPlay ? (
           mounted && (
             <Suspense fallback={null}>
-              <DrapeScene key={sceneKey} active={active} filter={filter} onContextLost={() => setSceneKey(k => k + 1)} />
+              <DrapeScene key={sceneKey} active={active} filter={filter} arcs={arcs} onContextLost={() => setSceneKey(k => k + 1)} />
             </Suspense>
           )
         ) : (
           <StaticDrapes />
         )}
+      </div>
+
+      {/* 2D "tension arcs" around a held saree — driven by the scene while one is being dragged */}
+      <div ref={arcs} className="pointer-events-none absolute inset-0 z-[5]" aria-hidden>
+        <span className="absolute left-0 top-0 opacity-0 will-change-transform">
+          <svg viewBox="0 0 30 60" width="30" height="60" fill="none" stroke="#3a2418" strokeWidth="2.4" strokeLinecap="round" aria-hidden>
+    <path d="M22 5 C 5 18, 5 42, 22 55" />
+    <path d="M25 17 C 15 25, 15 35, 25 43" strokeWidth="2" />
+  </svg>
+        </span>
+        <span className="absolute left-0 top-0 opacity-0 will-change-transform [&_svg]:-scale-x-100">
+          <svg viewBox="0 0 30 60" width="30" height="60" fill="none" stroke="#3a2418" strokeWidth="2.4" strokeLinecap="round" aria-hidden>
+    <path d="M22 5 C 5 18, 5 42, 22 55" />
+    <path d="M25 17 C 15 25, 15 35, 25 43" strokeWidth="2" />
+  </svg>
+        </span>
       </div>
 
       {/* overlay UI (pointer-events only on controls so drapes can be grabbed through the copy) */}

@@ -19,6 +19,8 @@ export interface DrapeSceneProps {
   onContextLost?: () => void;
   active: boolean;
   filter: Tag | null;
+  /** DOM overlay (two arc groups) the scene drives while a saree is held — 2D 'tension arcs' */
+  arcs?: React.RefObject<HTMLDivElement | null>;
 }
 
 interface Entry {
@@ -542,7 +544,14 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
       const tz = hovering.current ? -0.14 + 0.05 * Math.sin(t * 0.7 + index) : THREE.MathUtils.clamp(-lvx * 0.045 + gx * 0.22, -0.38, 0.38);
       [T.x, T.vx] = springStep(T.x, T.vx, tx, 45, 8, dt);
       [T.z, T.vz] = springStep(T.z, T.vz, tz, 45, 8, dt);
-      tiltRef.current.rotation.set(T.x, 0, T.z);
+      // held: a faint tremble + slow sway that grow with how hard the hand moves it (the 2D arcs echo this)
+      const shake = S.hold * Math.min(1, Math.hypot(lv.x, lv.z) / 5);
+      const vib = S.hold * 0.004 + shake * 0.006;
+      tiltRef.current.rotation.set(
+        T.x + Math.sin(t * 61 + index) * vib + Math.sin(t * 5.1) * 0.012 * shake,
+        Math.sin(t * 4.3 + index) * 0.02 * shake,
+        T.z + Math.cos(t * 53 + index) * vib + Math.cos(t * 4.7) * 0.014 * shake
+      );
     }
     U.uLag.value.copy(S.lag);
     U.uRipple.value = S.ripple;
@@ -767,6 +776,65 @@ function Petal({ i, at }: { i: number; at: { x: number; z: number; k: number } }
 }
 
 /**
+ * Anime-style "tension arcs": while a saree is held, two small curved strokes sit on either side of it, tremble
+ * slightly, lean and trail with the hand's motion and sway, then fade when it is let go. Pure 2D overlay: the scene
+ * only moves the two elements (no React state).
+ */
+function ActionMarks({ arcs }: { arcs?: React.RefObject<HTMLDivElement | null> }) {
+  const ctx = useContext(SceneCtx);
+  const { camera, size } = useThree();
+  const st = useRef({ a: 0, x: 0, y: 0, vx: 0, vy: 0, px: 0, py: 0, init: false, speed: 0, lean: 0 });
+  const v = useMemo(() => new THREE.Vector3(), []);
+  const r = useMemo(() => new THREE.Vector3(), []);
+  useFrame((state, delta) => {
+    const root = arcs?.current;
+    if (!root) return;
+    const L = root.children[0] as HTMLElement | undefined, R = root.children[1] as HTMLElement | undefined;
+    if (!L || !R) return;
+    const S = st.current, dt = Math.min(delta, 1 / 30);
+    const d = ctx.dragging.current;
+    const held = !!d?.heavy;
+    S.a += ((held ? 1 : 0) - S.a) * (1 - Math.exp(-dt * (held ? 18 : 9)));
+    if (S.a < 0.01 && !held) { L.style.opacity = R.style.opacity = '0'; S.init = false; return; }
+    if (d) {
+      const p = d.rb.translation();
+      v.set(p.x, p.y, p.z).project(camera);
+      const sx = (v.x * 0.5 + 0.5) * size.width, sy = (-v.y * 0.5 + 0.5) * size.height;
+      // half the bundle's on-screen width
+      camera.matrixWorld.extractBasis(r, v, v);
+      v.set(p.x, p.y, p.z).addScaledVector(r, 1.2 * ctx.bounds.s).project(camera);
+      const hw = Math.abs((v.x * 0.5 + 0.5) * size.width - sx);
+      if (!S.init) { S.px = sx; S.py = sy; S.init = true; S.x = sx; S.y = sy; }
+      S.vx += (((sx - S.px) / Math.max(dt, 1e-3)) - S.vx) * 0.25;
+      S.vy += (((sy - S.py) / Math.max(dt, 1e-3)) - S.vy) * 0.25;
+      S.px = sx; S.py = sy;
+      S.x = sx; S.y = sy;
+      (S as unknown as { hw: number }).hw = hw;
+    }
+    const hw = (S as unknown as { hw?: number }).hw ?? 90;
+    const speed = Math.min(1, Math.hypot(S.vx, S.vy) / 700);
+    S.speed += (speed - S.speed) * (1 - Math.exp(-dt * 10));
+    const t = state.clock.elapsedTime;
+    S.lean += ((THREE.MathUtils.clamp(S.vx * 0.02, -16, 16)) - S.lean) * (1 - Math.exp(-dt * 9));
+    const sway = Math.sin(t * 6.2) * (2.5 + 5 * S.speed);
+    const pop = 0.6 + 0.4 * Math.min(1, S.a * 1.4);
+    const jit = (0.7 + 1.4 * S.speed);
+    const trail = THREE.MathUtils.clamp(-S.vx * 0.025, -16, 16);
+    const trailY = THREE.MathUtils.clamp(-S.vy * 0.02, -10, 10);
+    const place = (el: HTMLElement, side: -1 | 1) => {
+      const jx = (Math.random() - 0.5) * 2 * jit, jy = (Math.random() - 0.5) * 2 * jit;
+      const x = S.x + side * (hw + 20 + 6 * S.speed) + trail * 0.6 + jx;
+      const y = S.y - 10 + trailY * 0.6 + jy;
+      const rot = side * (S.lean * 0.6 + sway) ;
+      el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%) rotate(${rot}deg) scale(${(pop * (0.9 + 0.35 * S.speed)).toFixed(3)})`;
+      el.style.opacity = String(Math.min(1, S.a) * (0.82 + 0.18 * Math.random()));
+    };
+    place(L, -1); place(R, 1);
+  });
+  return null;
+}
+
+/**
  * Pre-uploads every texture to the GPU and compiles the shaders in small idle slices, while the scene is still hidden,
  * so the first visible frame never stalls. (three only does this lazily, on the first render that draws a material.)
  */
@@ -807,7 +875,7 @@ function Warm({ ready }: { ready: boolean }) {
 
 /* ------------------------------------------------------------------ scene */
 
-function World({ bounds, filter }: DrapeSceneProps & { bounds: Bounds }) {
+function World({ bounds, filter, arcs }: DrapeSceneProps & { bounds: Bounds }) {
   const { startDrag, dragging } = useDragController(bounds);
 
   const petals = useRef(new Map<string, RapierRigidBody>());
@@ -883,6 +951,7 @@ function World({ bounds, filter }: DrapeSceneProps & { bounds: Bounds }) {
   return (
     <SceneCtx.Provider value={ctx}>
       <Warm ready={mounted >= LAYOUT.saree.length} />
+      <ActionMarks arcs={arcs} />
       {LAYOUT.saree.map((l, i) => {
         if (i >= mounted) return null;
         const saree = SAREES.find(x => x.id === l.id)!;
