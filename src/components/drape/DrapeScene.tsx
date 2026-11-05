@@ -93,12 +93,10 @@ function makePetalShadowTex(size: number, frac: number, blur: number) {
   g.filter = `blur(${blur}px)`;
   g.fillStyle = 'rgb(46,20,13)';
   g.beginPath();
-  // broad, rounded body with a gentle point at the base (−z, where the petal joins the flower)
-  g.moveTo(X(0.5), Y(0.0));
-  g.bezierCurveTo(X(0.58), Y(0.04), X(0.98), Y(0.2), X(1.0), Y(0.58));
-  g.bezierCurveTo(X(1.02), Y(0.92), X(0.7), Y(1.02), X(0.5), Y(1.0));
-  g.bezierCurveTo(X(0.26), Y(1.02), X(-0.02), Y(0.9), X(0.0), Y(0.56));
-  g.bezierCurveTo(X(0.02), Y(0.2), X(0.42), Y(0.04), X(0.5), Y(0.0));
+  g.moveTo(X(0.5), Y(0.02));                                   // narrow base
+  g.bezierCurveTo(X(0.92), Y(0.1), X(1.04), Y(0.62), X(0.62), Y(0.94));
+  g.quadraticCurveTo(X(0.52), Y(1.02), X(0.46), Y(0.95));      // slightly pointed tip
+  g.bezierCurveTo(X(-0.04), Y(0.66), X(0.0), Y(0.12), X(0.5), Y(0.02));
   g.fill();
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
@@ -675,8 +673,8 @@ const petalUp = new THREE.Vector3(), petalTorque = new THREE.Vector3(), petalWor
 
 function Petal({ i, at }: { i: number; at: { x: number; z: number; k: number } }) {
   const ctx = useContext(SceneCtx);
-  const rb = useRef<RapierRigidBody>(null);
   const geo = usePetalGeometry();
+  const rb = useRef<RapierRigidBody>(null);
   const s = ctx.bounds.s * at.k;
   const init = useMemo(
     () => ({
@@ -718,13 +716,13 @@ function Petal({ i, at }: { i: number; at: { x: number; z: number; k: number } }
   return (
     <>
       {/* y: sprites sit below the cupped petal so the shadow never cuts through its body */}
-      <ShadowBlob body={rb} w={0.56 * s} d={0.68 * s} strength={0.45} y={-0.14} petal />
+      <ShadowBlob body={rb} w={0.5 * s} d={0.68 * s} strength={0.45} y={-0.14} petal />
       <RigidBody ref={rb} colliders={false} position={init.p} quaternion={init.q} gravityScale={PETAL_GRAVITY} linearDamping={3.2} angularDamping={1.1} ccd>
         <CuboidCollider args={[0.22 * s * 1.25, 0.07 * s, 0.3 * s * 1.25]} density={0.15} friction={0.6} restitution={0} />
         <mesh
           geometry={geo}
           material={petalMaterial}
-          scale={s}
+          scale={1.25 * s}
           onPointerDown={e => entry.current && ctx.startDrag(entry.current, e)}
           onPointerOver={() => !ctx.dragging.current && (document.body.style.cursor = 'grab')}
           onPointerOut={() => !ctx.dragging.current && (document.body.style.cursor = '')}
