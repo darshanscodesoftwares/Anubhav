@@ -673,7 +673,24 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
 /** Light rose petal: floats down slowly (low gravity, high drag), can be picked up and tossed like the drapes. */
 /** Petal sprites: one shared material; each petal picks the atlas view that matches how the camera sees it. */
 const PETAL_COLS = 4, PETAL_ROWS = 3, PETAL_FRAMES = 12;
-const petalSpriteMat = new THREE.MeshBasicMaterial({ map: petalAtlas, transparent: true, alphaTest: 0.3, toneMapped: false });
+/** Cross-fades two atlas views (premultiplied, so differing outlines blend cleanly) and cuts the edge with an alpha test. */
+function makePetalMaterial() {
+  return new THREE.ShaderMaterial({
+    uniforms: { map: { value: petalAtlas }, rectA: { value: new THREE.Vector4(0, 0, 1, 1) }, rectB: { value: new THREE.Vector4(0, 0, 1, 1) }, mixT: { value: 0 } },
+    side: THREE.DoubleSide,
+    vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: `uniform sampler2D map; uniform vec4 rectA; uniform vec4 rectB; uniform float mixT; varying vec2 vUv;
+      void main(){
+        vec4 a = texture2D(map, rectA.xy + vUv * rectA.zw);
+        vec4 b = texture2D(map, rectB.xy + vUv * rectB.zw);
+        float al = mix(a.a, b.a, mixT);
+        if (al < 0.32) discard;
+        vec3 col = (a.rgb * a.a * (1.0 - mixT) + b.rgb * b.a * mixT) / max(al, 1e-3);
+        gl_FragColor = vec4(col, 1.0);
+        #include <colorspace_fragment>
+      }`
+  });
+}
 const pCam = new THREE.Vector3(), pAxis = new THREE.Vector3(), pNorm = new THREE.Vector3(), pInv = new THREE.Quaternion(), pSpin = new THREE.Quaternion(), pZ = new THREE.Vector3(0, 0, 1);
 const petalUp = new THREE.Vector3(), petalTorque = new THREE.Vector3(), petalWorldUp = new THREE.Vector3(0, 1, 0), petalQ = new THREE.Quaternion();
 
@@ -682,8 +699,9 @@ function Petal({ i, at }: { i: number; at: { x: number; z: number; k: number } }
   const rb = useRef<RapierRigidBody>(null);
   const { camera } = useThree();
   const sprite = useRef<THREE.Mesh>(null);
-  const view = useRef({ idx: -1, flip: false, rot: 0 });
+  const view = useRef({ f: -1, rot: 0, sx: 1 });
   const spriteGeo = useMemo(() => new THREE.PlaneGeometry(1, 1), []);
+  const spriteMat = useMemo(() => makePetalMaterial(), []);
   const s = ctx.bounds.s * at.k;
   const init = useMemo(
     () => ({
@@ -701,11 +719,12 @@ function Petal({ i, at }: { i: number; at: { x: number; z: number; k: number } }
     return () => { petals.delete(key); };
   }, [i]);
   // airborne flutter: a slow side-to-side sway and tumble, like a petal drifting through air
-  useFrame(state => {
+  useFrame((state, delta) => {
     const b = rb.current;
     if (!b) return;
     const y = b.translation().y;
     const m = b.mass(), dt = 1 / 60;
+    const fdt = Math.min(delta, 1 / 30);
     // settling: near a surface the petal is pressed back toward lying flat (it never balances on its edge);
     // in open air only a whisper of levelling so it still tumbles as it drifts
     const r = b.rotation();
@@ -722,18 +741,22 @@ function Petal({ i, at }: { i: number; at: { x: number; z: number; k: number } }
       pAxis.set(0, 0, 1).applyQuaternion(petalQ).applyQuaternion(pInv);
       pNorm.copy(petalUp).applyQuaternion(pInv);
       const V = view.current;
-      if (Math.hypot(pAxis.x, pAxis.y) > 0.08) V.rot = Math.atan2(-pAxis.x, pAxis.y);
-      const idx = Math.min(PETAL_FRAMES - 1, Math.round(Math.pow(1 - Math.abs(facing), 0.9) * 0.95 * (PETAL_FRAMES - 1)));
-      const flip = (pNorm.x * Math.cos(V.rot) + pNorm.y * Math.sin(V.rot) < 0) !== (facing < 0);
-      if (idx !== V.idx || flip !== V.flip) {
-        V.idx = idx; V.flip = flip;
-        const col = idx % PETAL_COLS, row = Math.floor(idx / PETAL_COLS);
-        const u0 = col / PETAL_COLS, u1 = (col + 1) / PETAL_COLS, v1 = 1 - row / PETAL_ROWS, v0 = 1 - (row + 1) / PETAL_ROWS;
-        const uv = spriteGeo.attributes.uv as THREE.BufferAttribute;
-        const [a, c] = flip ? [u1, u0] : [u0, u1];
-        uv.setXY(0, a, v1); uv.setXY(1, c, v1); uv.setXY(2, a, v0); uv.setXY(3, c, v0);
-        uv.needsUpdate = true;
-      }
+      // everything the sprite shows is eased, so the petal glides between views instead of snapping
+      let rotT = V.rot;
+      if (Math.hypot(pAxis.x, pAxis.y) > 0.08) rotT = Math.atan2(-pAxis.x, pAxis.y);
+      const fT = Math.min(PETAL_FRAMES - 1, Math.pow(1 - Math.abs(facing), 0.9) * 0.95 * (PETAL_FRAMES - 1));
+      const flipT = (pNorm.x * Math.cos(rotT) + pNorm.y * Math.sin(rotT) < 0) !== (facing < 0);
+      if (V.f < 0) { V.f = fT; V.rot = rotT; V.sx = flipT ? -1 : 1; }
+      const k = 1 - Math.exp(-fdt * 9);
+      V.f += (fT - V.f) * k;
+      let dr = rotT - V.rot; dr = Math.atan2(Math.sin(dr), Math.cos(dr));
+      V.rot += dr * (1 - Math.exp(-fdt * 14));
+      V.sx += ((flipT ? -1 : 1) - V.sx) * (1 - Math.exp(-fdt * 10));      // mirror by turning the sprite through edge-on
+      const iA = Math.min(PETAL_FRAMES - 1, Math.floor(V.f)), iB = Math.min(PETAL_FRAMES - 1, iA + 1), t = V.f - iA;
+      const rect = (i: number, out: THREE.Vector4) => out.set((i % PETAL_COLS) / PETAL_COLS, 1 - (Math.floor(i / PETAL_COLS) + 1) / PETAL_ROWS, 1 / PETAL_COLS, 1 / PETAL_ROWS);
+      rect(iA, spriteMat.uniforms.rectA.value); rect(iB, spriteMat.uniforms.rectB.value);
+      spriteMat.uniforms.mixT.value = t;
+      sp.scale.set(1.05 * s * V.sx, 1.05 * s, 1);
       sp.quaternion.copy(camera.quaternion).multiply(pSpin.setFromAxisAngle(pZ, V.rot));
       sp.position.set(pos.x, pos.y, pos.z).addScaledVector(pCam, 0.1 * s);
     }
@@ -758,8 +781,7 @@ function Petal({ i, at }: { i: number; at: { x: number; z: number; k: number } }
       <mesh
         ref={sprite}
         geometry={spriteGeo}
-        material={petalSpriteMat}
-        scale={1.05 * s}
+        material={spriteMat}
         onPointerDown={e => entry.current && ctx.startDrag(entry.current, e)}
         onPointerOver={() => !ctx.dragging.current && (document.body.style.cursor = 'grab')}
         onPointerOut={() => !ctx.dragging.current && (document.body.style.cursor = '')}
