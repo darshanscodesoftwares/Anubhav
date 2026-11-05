@@ -230,6 +230,11 @@ Owner request: append an entry here after every change session.
   1.5 px colour dot — no white pill, border or shadow; 40 % opacity at rest, 80 % on hover, 90 % + a thin ink underline when
   active; tighter, wider-spaced row. Also: faded (non-matching) sarees now fade their floor shadow too (`strength` 0.22 when
   dimmed) — before, the contact shadow showed through the translucent cloth as a dark patch.
+- **2026‑11‑05** — Owner: "dropped sarees should air-wave too, all sarees should always flow." The edge flutter (`uRipple`) was
+  driven only by speed (hovering floors at 0.32), so landed bundles froze. Now every bundle has an always-on **breeze**:
+  `breeze = 0.42 + 0.16·sin(0.5t) + 0.08·sin(1.3t)` (per-bundle phase) as the minimum ripple, plus a slow gust that
+  nudges the upper layers (`lagTarget` ± 0.035 x / 0.03 z). Verified by comparing frames 2 s apart: a resting saree's
+  top edge/corners and borders visibly move. Tune: the `0.42` base and the `0.035/0.03` sway in `DrapeScene.tsx`.
   Bug found: `bowl ** 1.4` went NaN at the extreme wall edge (float error → tiny negative base) and drew black slivers
   down both side walls — clamp with `Math.max(0, …)` (found by bisecting: no shape → no slivers).
 

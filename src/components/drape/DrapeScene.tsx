@@ -437,7 +437,12 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
     tmp.q.set(r.x, r.y, r.z, r.w).invert();
     tmp.a.applyQuaternion(tmp.q);
     // upper layers trail opposite the acceleration
+    // constant breeze: slow gusts sway the upper layers a little, even when the bundle is at rest
+    const wt = state.clock.elapsedTime + index * 2.1;
+    const gust = 0.6 + 0.4 * Math.sin(wt * 0.37);
     const lagTarget = tmp.a.multiplyScalar(-0.0026).clampLength(0, 0.22);
+    lagTarget.x += Math.sin(wt * 0.8) * 0.035 * gust;
+    lagTarget.z += Math.cos(wt * 0.63 + 1.3) * 0.03 * gust;
     for (const ax of ['x', 'y', 'z'] as const) {
       const [x, v] = springStep(S.lag[ax], S.lagV[ax], lagTarget[ax], k, c, dt);
       S.lag[ax] = x;
@@ -454,7 +459,9 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
     }
     if (lv.y > -0.3 && bp.y < 0.4 * s) S.gusted = false;
     S.prevVy = lv.y;
-    const rippleTarget = Math.max(hovering.current ? 0.32 : 0, Math.min(1, speed / 7) + impact * 0.9);
+    // always-on flutter along the edges (all sarees, not just flying ones), swelling and easing with the gusts
+    const breeze = 0.42 + 0.16 * Math.sin(wt * 0.5) + 0.08 * Math.sin(wt * 1.3);
+    const rippleTarget = Math.max(breeze, Math.min(1, speed / 7) + impact * 0.9);
     S.ripple += (rippleTarget - S.ripple) * (rippleTarget > S.ripple ? 0.25 : 0.035);
     // soft slump on impact, then breathe back (well damped, no bounce)
     if (impact) S.slumpV += impact * 3.4;
