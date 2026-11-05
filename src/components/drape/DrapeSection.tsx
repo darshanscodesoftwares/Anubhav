@@ -22,12 +22,17 @@ function Pill({ active, children, onClick, dot }: { active?: boolean; children: 
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`pointer-events-auto inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-[0.92rem] shadow-[0_6px_20px_rgba(90,42,30,0.08)] transition-all duration-300 ease-silk md:px-6 ${
-        active ? 'bg-ink text-blush' : 'bg-white/85 text-ink hover:bg-white'
+      className={`pointer-events-auto group relative inline-flex items-center gap-1.5 px-2 py-1.5 text-[0.78rem] tracking-[0.06em] text-ink transition-opacity duration-500 ease-silk ${
+        active ? 'opacity-90' : 'opacity-40 hover:opacity-80'
       }`}
     >
-      {dot && <span className="h-2.5 w-2.5 rounded-full" style={{ background: dot }} />}
+      {dot && <span className="h-1.5 w-1.5 rounded-full" style={{ background: dot }} />}
       {children}
+      <span
+        className={`absolute inset-x-2 -bottom-px h-px origin-left bg-ink/60 transition-transform duration-500 ease-silk ${
+          active ? 'scale-x-100' : 'scale-x-0'
+        }`}
+      />
     </button>
   );
 }
@@ -140,7 +145,7 @@ export function DrapeSection() {
           <span className="font-serif text-xl tracking-wide">anubhav <span className="text-ink/50">/</span> atelier</span>
         </div>
 
-        <div className="js-drape-reveal absolute inset-x-0 top-24 flex flex-wrap justify-center gap-2.5 px-6 md:top-9 md:gap-3">
+        <div className="js-drape-reveal absolute inset-x-0 top-24 flex flex-wrap justify-center gap-x-3 gap-y-1 px-6 md:top-9 md:gap-x-5">
           {TAGS.map(t => (
             <Pill key={t.tag} dot={t.dot} active={filter === t.tag} onClick={() => setFilter(f => (f === t.tag ? null : t.tag))}>
               {t.tag}

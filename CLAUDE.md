@@ -37,7 +37,7 @@ Palette: blush `#f3e4dc`, ink `#3a2418`, gold `#b08440`. Copy: kicker (letter-sp
 - `src/components/` — `Nav` (in the hero only the logo shows — links/menu are hidden + inert per owner; after the hero: hides on scroll-down, frosted on scroll-up, full-screen menu), `ProgressRail`, `Petals` (2D canvas, reacts to scroll velocity), `Loader`, `Logo` (lotus SVG), `ScrollIndicator` (custom scrollbar), `Collections` + `Footer`.
 - `src/lib/smooth.ts` — Lenis singleton, `scrollToTarget`, reduced-motion check.
 - `src/components/drape/` — **"Pick a Drape" 3D play section** (after the hero), lazy-loaded chunk:
-  - `DrapeSection.tsx` — overlay UI (headline, filter chips Silk/Organza/Velvet/Bridal/Festive, "View Collection" link),
+  - `DrapeSection.tsx` — overlay UI (headline, minimal text filter chips Silk/Organza/Velvet/Bridal/Festive, "View Collection" link),
     mounts the scene via `React.lazy` when within 900px, runs it only while visible; static cut-out fallback (no WebGL / reduced motion).
   - `DrapeScene.tsx` — R3F canvas, Rapier physics, camera rig that raycasts screen corners onto the floor to place walls,
     drag-and-throw (velocity-driven toward a lift plane, gravity off while held, throw keeps release velocity), saree bundles, rose petals, two-layer soft shadows.
@@ -226,6 +226,10 @@ Owner request: append an entry here after every change session.
   Chrome) now happen in the first ~3 s after load, while the visitor is still in the hero. Tried and reverted (no measured gain):
   `Image.decode()` first, and flipping to `ImageBitmap` (just moved the cost into `createImageBitmap`).
   Note: headless Chrome probably uses a software GL path, so absolute per-texture costs will differ on a real GPU.
+- **2026‑11‑05** — Owner: make the filter chips minimal and less visible. `Pill` is now plain text (0.78rem, wide tracking) with a
+  1.5 px colour dot — no white pill, border or shadow; 40 % opacity at rest, 80 % on hover, 90 % + a thin ink underline when
+  active; tighter, wider-spaced row. Also: faded (non-matching) sarees now fade their floor shadow too (`strength` 0.22 when
+  dimmed) — before, the contact shadow showed through the translucent cloth as a dark patch.
   Bug found: `bowl ** 1.4` went NaN at the extreme wall edge (float error → tiny negative base) and drew black slivers
   down both side walls — clamp with `Math.max(0, …)` (found by bisecting: no shape → no slivers).
 

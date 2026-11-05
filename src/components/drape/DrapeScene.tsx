@@ -520,7 +520,7 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
 
   return (
     <>
-    <ShadowBlob body={rb} w={BUNDLE.w * s} d={BUNDLE.d * s} />
+    <ShadowBlob body={rb} w={BUNDLE.w * s} d={BUNDLE.d * s} strength={dim ? 0.22 : 1} />
     <RigidBody
       ref={rb}
       colliders={false}
