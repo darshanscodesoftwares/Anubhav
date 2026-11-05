@@ -141,13 +141,13 @@ export function DrapeSection() {
 
       {/* 2D "tension arcs" around a held saree — driven by the scene while one is being dragged */}
       <div ref={arcs} className="pointer-events-none absolute inset-0 z-[5]" aria-hidden>
-        <span className="absolute left-0 top-0 opacity-0 will-change-transform">
-          <svg viewBox="0 0 30 60" width="30" height="60" fill="none" stroke="#3a2418" strokeWidth="2.4" strokeLinecap="round" aria-hidden>
+        <span className="absolute left-0 top-0 opacity-0">
+          <svg viewBox="0 0 30 60" width="30" height="60" fill="none" stroke="#2c1a10" strokeWidth="2.6" strokeLinecap="round" shapeRendering="geometricPrecision" aria-hidden>
     <path d="M22 5 C 5 18, 5 42, 22 55" />
     <path d="M25 17 C 15 25, 15 35, 25 43" strokeWidth="2" />
   </svg>
         </span>
-        <span className="absolute left-0 top-0 opacity-0 will-change-transform [&_svg]:-scale-x-100">
+        <span className="absolute left-0 top-0 opacity-0 [&_svg]:-scale-x-100">
           <svg viewBox="0 0 30 60" width="30" height="60" fill="none" stroke="#3a2418" strokeWidth="2.4" strokeLinecap="round" aria-hidden>
     <path d="M22 5 C 5 18, 5 42, 22 55" />
     <path d="M25 17 C 15 25, 15 35, 25 43" strokeWidth="2" />

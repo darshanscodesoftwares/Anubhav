@@ -546,7 +546,7 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
       [T.z, T.vz] = springStep(T.z, T.vz, tz, 45, 8, dt);
       // held: a faint tremble + slow sway that grow with how hard the hand moves it (the 2D arcs echo this)
       const shake = S.hold * Math.min(1, Math.hypot(lv.x, lv.z) / 5);
-      const vib = S.hold * 0.004 + shake * 0.006;
+      const vib = 0; // (the 2D arcs now pulse instead of trembling)
       tiltRef.current.rotation.set(
         T.x + Math.sin(t * 61 + index) * vib + Math.sin(t * 5.1) * 0.012 * shake,
         Math.sin(t * 4.3 + index) * 0.02 * shake,
@@ -817,17 +817,24 @@ function ActionMarks({ arcs }: { arcs?: React.RefObject<HTMLDivElement | null> }
     const t = state.clock.elapsedTime;
     S.lean += ((THREE.MathUtils.clamp(S.vx * 0.02, -16, 16)) - S.lean) * (1 - Math.exp(-dt * 9));
     const sway = Math.sin(t * 6.2) * (2.5 + 5 * S.speed);
-    const pop = 0.6 + 0.4 * Math.min(1, S.a * 1.4);
-    const jit = (0.7 + 1.4 * S.speed);
+    // the arcs breathe: they slip ≈3 px outward and back in, looping (≈1.6 Hz), instead of trembling
+    // the small (inner) arc leads and the big (outer) arc follows a beat later, like a ripple travelling outward
+    const pulseSmall = 0.5 - 0.5 * Math.cos(t * 10);
+    const pulseBig = 0.5 - 0.5 * Math.cos(t * 10 - 1.7);
     const trail = THREE.MathUtils.clamp(-S.vx * 0.025, -16, 16);
     const trailY = THREE.MathUtils.clamp(-S.vy * 0.02, -10, 10);
     const place = (el: HTMLElement, side: -1 | 1) => {
-      const jx = (Math.random() - 0.5) * 2 * jit, jy = (Math.random() - 0.5) * 2 * jit;
-      const x = S.x + side * (hw + 20 + 6 * S.speed) + trail * 0.6 + jx;
-      const y = S.y - 10 + trailY * 0.6 + jy;
-      const rot = side * (S.lean * 0.6 + sway) ;
-      el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%) rotate(${rot}deg) scale(${(pop * (0.9 + 0.35 * S.speed)).toFixed(3)})`;
-      el.style.opacity = String(Math.min(1, S.a) * (0.82 + 0.18 * Math.random()));
+      // whole pixels + no scale transform keep the thin strokes razor sharp
+      const x = Math.round(S.x + side * (hw + 20) + trail * 0.6);
+      const y = Math.round(S.y - 10 + trailY * 0.6);
+      const rot = side * (S.lean * 0.6 + sway);
+      el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%) rotate(${rot.toFixed(2)}deg)`;
+      el.style.opacity = String(Math.min(1, S.a));
+      const paths = el.querySelectorAll('path');   // [0] big outer arc, [1] small inner arc (local −x is outward on both sides)
+      if (paths.length === 2) {
+        (paths[1] as SVGElement).style.transform = `translateX(${(-3.5 * pulseSmall).toFixed(2)}px)`;
+        (paths[0] as SVGElement).style.transform = `translateX(${(-4.5 * pulseBig).toFixed(2)}px)`;
+      }
     };
     place(L, -1); place(R, 1);
   });
