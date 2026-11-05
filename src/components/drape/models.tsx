@@ -72,7 +72,7 @@ function makePetalTexture() {
       const col = f < 0.55 ? mix(pale, mid, f / 0.55) : mix(mid, deep, (f - 0.55) / 0.45);
       // a little greenish-yellow where the petal joins the flower (like a real rose petal's base)
       const yg = (1 - ss(0.04, 0.34, 1 - u)) * (1 - ss(0.05, 0.62, e));
-      const c2 = yg > 0 ? mix(col, [228, 222, 104], Math.min(1, yg * 1.1)) : col;
+      const c2 = yg > 0 ? mix(col, [242, 238, 172], Math.min(1, yg * 0.85)) : col;
       col[0] = c2[0]; col[1] = c2[1]; col[2] = c2[2];
       const k = (y * W + x) * 4;
       img.data[k] = col[0];
