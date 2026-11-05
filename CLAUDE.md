@@ -171,6 +171,10 @@ Owner request: append an entry here after every change session.
 - **2026‑11‑04** — Petals feather-light: `PETAL_GRAVITY = 0.16`, linearDamping 3.2, angularDamping 1.1, plus an airborne
   flutter (gentle sinusoidal side-sway + tumble impulses while y > 0.12). Gust impulse raised (outward 10, lift 2–3.2)
   so a landing saree darts nearby petals away fast, then drag slows them into a slow floating settle.
+- **2026‑11‑05** — Owner: section copy goes behind the 3D objects. In `DrapeSection` the headline/caption and the right-hand
+  paragraph now render in a layer *below* the (transparent) canvas, so sarees and petals occlude the text; chips and the
+  logo stay above. The "View Collection" link needs clicks, so it lives in the top overlay with an invisible twin
+  of the paragraph (and an invisible link twin in the behind layer) keeping both layouts identical.
 
 ## Next / ideas
 

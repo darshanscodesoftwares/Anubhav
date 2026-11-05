@@ -94,6 +94,22 @@ export function DrapeSection() {
       className="relative h-svh min-h-[640px] w-full overflow-hidden bg-[radial-gradient(ellipse_80%_70%_at_55%_45%,#fdf6f1,#f3e3da)]"
       aria-label="Pick a drape — interactive saree play area"
     >
+      {/* Copy sits BEHIND the 3D canvas so drapes and petals pass in front of it (canvas is transparent). */}
+      <div className="pointer-events-none absolute inset-0 px-6 py-8 md:px-[5.6vw] md:py-10">
+        <div className="js-drape-reveal absolute left-6 top-[30%] md:left-[5.6vw] md:top-[22%]">
+          <h2 className="font-serif text-[clamp(3.4rem,8vw,7.6rem)] font-medium italic leading-[0.88] text-ink">
+            Pick a<br />Drape
+          </h2>
+          <span className="mt-7 mb-5 block h-[2px] w-10 bg-gold" />
+          <p className="text-[1.02rem] text-ink-soft">Lift one, let it go, and watch it settle.</p>
+        </div>
+
+        <div className="js-drape-reveal absolute bottom-10 right-[5.6vw] hidden max-w-[15rem] text-right lg:block">
+          <p className="text-lg leading-snug text-ink">A soft study of silk,<br />weight and light.</p>
+          <span className="invisible mt-4 inline-flex items-center gap-2 border-b pb-1 font-medium" aria-hidden>View Collection →</span>
+        </div>
+      </div>
+
       <div className="absolute inset-0">
         {canPlay ? (
           mounted && (
@@ -121,16 +137,8 @@ export function DrapeSection() {
           ))}
         </div>
 
-        <div className="js-drape-reveal absolute left-6 top-[30%] md:left-[5.6vw] md:top-[22%]">
-          <h2 className="font-serif text-[clamp(3.4rem,8vw,7.6rem)] font-medium italic leading-[0.88] text-ink">
-            Pick a<br />Drape
-          </h2>
-          <span className="mt-7 mb-5 block h-[2px] w-10 bg-gold" />
-          <p className="text-[1.02rem] text-ink-soft">Lift one, let it go, and watch it settle.</p>
-        </div>
-
-        <div className="js-drape-reveal absolute bottom-10 right-[5.6vw] hidden max-w-[15rem] text-right lg:block">
-          <p className="text-lg leading-snug text-ink">A soft study of silk,<br />weight and light.</p>
+        <div className="absolute bottom-10 right-[5.6vw] hidden max-w-[15rem] text-right lg:block">
+          <p className="invisible text-lg leading-snug" aria-hidden>A soft study of silk,<br />weight and light.</p>
           <a
             href="#collections"
             onClick={e => { e.preventDefault(); scrollToTarget('#collections'); }}
@@ -139,7 +147,6 @@ export function DrapeSection() {
             View Collection <span aria-hidden>→</span>
           </a>
         </div>
-
       </div>
     </section>
   );
