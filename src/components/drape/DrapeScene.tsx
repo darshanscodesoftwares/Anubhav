@@ -825,15 +825,18 @@ function ActionMarks({ arcs }: { arcs?: React.RefObject<HTMLDivElement | null> }
     const trailY = THREE.MathUtils.clamp(-S.vy * 0.02, -10, 10);
     const place = (el: HTMLElement, side: -1 | 1) => {
       // whole pixels + no scale transform keep the thin strokes razor sharp
-      const x = Math.round(S.x + side * (hw + 20) + trail * 0.6);
-      const y = Math.round(S.y - 10 + trailY * 0.6);
+      const x = Math.round(S.x + side * (hw + 26) + trail * 0.6);
+      const y = Math.round(S.y - 16 + trailY * 0.6);
       const rot = side * (S.lean * 0.6 + sway);
       el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%) rotate(${rot.toFixed(2)}deg)`;
       el.style.opacity = String(Math.min(1, S.a));
-      const paths = el.querySelectorAll('path');   // [0] big outer arc, [1] small inner arc (local −x is outward on both sides)
-      if (paths.length === 2) {
-        (paths[1] as SVGElement).style.transform = `translateX(${(-3.5 * pulseSmall).toFixed(2)}px)`;
-        (paths[0] as SVGElement).style.transform = `translateX(${(-4.5 * pulseBig).toFixed(2)}px)`;
+      // [0] big arc, [1] small arc — the artwork emanates toward the upper-right, so the left side is the mirrored one
+      const imgs = el.querySelectorAll('img');
+      if (imgs.length === 2) {
+        const sm = 3.5 * pulseSmall, bg = 4.5 * pulseBig;
+        const k = side; // local +x is screen-outward on the right side; the mirrored left side flips it back automatically
+        (imgs[1] as HTMLElement).style.transform = `translate(${(sm * (k < 0 ? 1 : 1)).toFixed(2)}px, ${(-sm * 0.55).toFixed(2)}px)`;
+        (imgs[0] as HTMLElement).style.transform = `translate(${(bg * (k < 0 ? 1 : 1)).toFixed(2)}px, ${(-bg * 0.55).toFixed(2)}px)`;
       }
     };
     place(L, -1); place(R, 1);
