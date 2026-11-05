@@ -30,6 +30,7 @@ const bake = (dataUrl, tint, baseRoughness, strength) => page.evaluate(async (da
   const rm = new ImageData(w, h), o = rm.data;
   const hex = parseInt(tint.slice(1), 16);
   const t = { r: (hex >> 16 & 255) / 255, g: (hex >> 8 & 255) / 255, b: (hex & 255) / 255 };
+  const GOLD_SAT = 0.7, RED_SAT = 0.45;
   const ss = (a, b, x) => { const k = Math.min(1, Math.max(0, (x - a) / (b - a))); return k * k * (3 - 2 * k); };
   for (let i = 0; i < d.length; i += 4) {
     const r = d[i] / 255, g = d[i + 1] / 255, b = d[i + 2] / 255;
@@ -44,9 +45,28 @@ const bake = (dataUrl, tint, baseRoughness, strength) => page.evaluate(async (da
     }
     const goldness = ss(18, 30, hue) * (1 - ss(52, 64, hue)) * ss(0.28, 0.5, sat) * ss(0.38, 0.62, max);
     const gold = goldness * strength;
-    d[i] = Math.round(255 * r * (t.r + (1 - t.r) * goldness));
-    d[i + 1] = Math.round(255 * g * (t.g + (1 - t.g) * goldness));
-    d[i + 2] = Math.round(255 * b * (t.b + (1 - t.b) * goldness));
+    let nr = r * (t.r + (1 - t.r) * goldness), ng = g * (t.g + (1 - t.g) * goldness), nb = b * (t.b + (1 - t.b) * goldness);
+    // vibrance: richer gold (zari) and richer reds/pinks (resham, florals), leaving the silk ground and creams alone
+    const redness = (ss(316, 346, hue) + (1 - ss(10, 20, hue)) * (hue < 180 ? 1 : 0)) * ss(0.26, 0.5, sat) * ss(0.25, 0.45, max);
+    const gain = 1 + goldness * GOLD_SAT + Math.min(1, redness) * RED_SAT;
+    if (gain > 1.001) {
+      const m2 = Math.max(nr, ng, nb), n2 = Math.min(nr, ng, nb), v2 = m2;
+      const s2 = m2 > 0 ? Math.min(1, ((m2 - n2) / m2) * gain) : 0;
+      // gold also drifts toward a warmer, truer gold hue (≈42°)
+      let h2 = 0;
+      if (m2 !== n2) {
+        if (m2 === nr) h2 = ((ng - nb) / (m2 - n2)) % 6;
+        else if (m2 === ng) h2 = (nb - nr) / (m2 - n2) + 2;
+        else h2 = (nr - ng) / (m2 - n2) + 4;
+        h2 *= 60; if (h2 < 0) h2 += 360;
+      }
+      h2 += (42 - h2) * 0.35 * goldness;
+      const k = (n) => { const a = ((n + h2 / 60) % 6); return v2 * (1 - s2 * Math.max(0, Math.min(a, 4 - a, 1))); };
+      nr = k(5); ng = k(3); nb = k(1);
+    }
+    d[i] = Math.round(255 * nr);
+    d[i + 1] = Math.round(255 * ng);
+    d[i + 2] = Math.round(255 * nb);
     o[i] = 255;
     o[i + 1] = Math.round((baseRoughness + (0.32 - baseRoughness) * gold) * 255);
     o[i + 2] = Math.round(gold * 0.9 * 255);
