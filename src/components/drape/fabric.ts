@@ -34,12 +34,15 @@ export function makeBundleGeometry(w: number, h: number, d: number, r: number, b
   for (let i = 0; i < pos.count; i++) {
     p.fromBufferAttribute(pos, i);
     const front = p.z > 0;
-    const rr = front ? rFront : r;
+    // a bundle sits on its flat underside: the bottom edge is only slightly softened, the rounding grows toward the top
+    const flat = 0.22 + 0.78 * THREE.MathUtils.smoothstep((p.y + half.y) / (2 * half.y), 0.0, 0.5);
+    const rr = (front ? rFront : r) * flat;
+    const rx = r * flat;
     // asymmetric inner box: the front fold eats more depth than the back
     c.set(
-      THREE.MathUtils.clamp(p.x, -half.x + r, half.x - r),
+      THREE.MathUtils.clamp(p.x, -half.x + rx, half.x - rx),
       THREE.MathUtils.clamp(p.y, -half.y + rr, half.y - rr),
-      THREE.MathUtils.clamp(p.z, -half.z + r, half.z - rFront)
+      THREE.MathUtils.clamp(p.z, -half.z + rx, half.z - (front ? rr : rx))
     );
     n.subVectors(p, c);
     if (n.lengthSq() > 1e-8) {
