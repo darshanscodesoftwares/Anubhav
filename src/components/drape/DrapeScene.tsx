@@ -716,7 +716,7 @@ function Petal({ i, at }: { i: number; at: { x: number; z: number; k: number } }
   return (
     <>
       {/* y: sprites sit below the cupped petal so the shadow never cuts through its body */}
-      <ShadowBlob body={rb} w={0.5 * s} d={0.68 * s} strength={0.45} y={-0.14} petal />
+      <ShadowBlob body={rb} w={0.5 * s} d={0.68 * s} strength={0.62} y={-0.04} petal />
       <RigidBody ref={rb} colliders={false} position={init.p} quaternion={init.q} gravityScale={PETAL_GRAVITY} linearDamping={3.2} angularDamping={1.1} ccd>
         <CuboidCollider args={[0.22 * s * 1.25, 0.07 * s, 0.3 * s * 1.25]} density={0.15} friction={0.6} restitution={0} />
         <mesh

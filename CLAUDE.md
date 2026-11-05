@@ -274,6 +274,7 @@ Owner request: append an entry here after every change session.
 - **2026‑11‑05** — Owner: tone the petal's greenish-yellow down and whiter: colour `rgb(228,222,104)` → `rgb(242,238,172)`, strength ×1.1 → ×0.85 (`yg` mix in `makePetalTexture`).
 - **2026‑11‑05** — Owner: petal lines looked like onion peels. In `makePetalTexture` the veins are now a low-frequency, smooth wave (`sin(v·(2.2+3.2u)·3.1 + warp)`, ≈ 7–17 soft ridges instead of 20–50 hard ones), without the `ss` step and at 0.05 amplitude (was 0.09), so the petal shows gentle shading instead of stripes. Tune `vein`/`streak` in `models.tsx`.
 - **2026‑11‑05** — Owner: the logo lingered on top of the next section as the hero scrolled away. `Nav` now tracks `leaving` (scroll > pin end + 30 px): in hero mode the logo fades out in 200 ms and becomes non-interactive (it still shows on the last scene at rest, and fades back in 500 ms in the solid/scroll-up bar). Checked: opacity 1 at the pin end, 0 by +60 px.
+- **2026‑11‑05** — Owner: resting petals looked floaty. Cause: their shadow sprites sat 0.14 below the floor (to dodge the old cup-intersection bug), which on the ≈40° camera pushes the shadow visibly away from the petal. Petal `ShadowBlob` is now `y = -0.04` (just under the mesh's lowest point, ≈ −0.01·s) with strength 0.45→0.62, so the contact shadow hugs the petal. No grey cup artefact in the render.
 
 ## Next / ideas
 
