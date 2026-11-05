@@ -534,8 +534,8 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
         if (Math.abs(mx) > half.x * 1.9 * s || Math.abs(mz) > half.z * 1.9 * s) return;
         // centre of mass past the lower bundle's edge → it can't balance there and slides off (physics stays yaw-locked,
         // so this is a push away from the ledge instead of a tip-over)
-        const ox = Math.sign(mx) * Math.max(0, Math.abs(mx) - half.x * s * 0.9);
-        const oz = Math.sign(mz) * Math.max(0, Math.abs(mz) - half.z * s * 0.9);
+        const ox = Math.sign(mx) * Math.max(0, Math.abs(mx) - half.x * s * 1.05);
+        const oz = Math.sign(mz) * Math.max(0, Math.abs(mz) - half.z * s * 1.05);
         support = { sx: (wx * ca - wz * sa) / s, sz: (wx * sa + wz * ca) / s, dyaw: by - ay, px: ox * cb - oz * sb, pz: ox * sb + oz * cb };
       });
     }
@@ -545,7 +545,7 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
       U.uSupRot.value.set(Math.cos(sup.dyaw), Math.sin(sup.dyaw));
       const over = Math.hypot(sup.px, sup.pz);
       if (over > 0.02) {
-        const k = Math.min(1, over / (0.3 * s)) * 30 * body.mass() * dt / over;
+        const k = Math.min(1, over / (0.1 * s)) * 24 * body.mass() * dt / over;
         body.applyImpulse({ x: sup.px * k, y: 0, z: sup.pz * k }, true);
       }
     }
