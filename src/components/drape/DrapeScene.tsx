@@ -11,7 +11,7 @@ import {
 } from '@react-three/rapier';
 import { SAREES, type Saree, type Tag } from './data';
 import { applyFabricDeform, makeBundleGeometry, makeFabricUniforms, springStep } from './fabric';
-import { petalAtlas } from './models';
+import { petalMaterial, usePetalGeometry } from './models';
 
 
 export interface DrapeSceneProps {
@@ -671,37 +671,12 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
 /* ------------------------------------------------------------------ petals */
 
 /** Light rose petal: floats down slowly (low gravity, high drag), can be picked up and tossed like the drapes. */
-/** Petal sprites: one shared material; each petal picks the atlas view that matches how the camera sees it. */
-const PETAL_COLS = 4, PETAL_ROWS = 3, PETAL_FRAMES = 12;
-/** Cross-fades two atlas views (premultiplied, so differing outlines blend cleanly) and cuts the edge with an alpha test. */
-function makePetalMaterial() {
-  return new THREE.ShaderMaterial({
-    uniforms: { map: { value: petalAtlas }, rectA: { value: new THREE.Vector4(0, 0, 1, 1) }, rectB: { value: new THREE.Vector4(0, 0, 1, 1) }, mixT: { value: 0 } },
-    side: THREE.DoubleSide,
-    vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: `uniform sampler2D map; uniform vec4 rectA; uniform vec4 rectB; uniform float mixT; varying vec2 vUv;
-      void main(){
-        vec4 a = texture2D(map, rectA.xy + vUv * rectA.zw);
-        vec4 b = texture2D(map, rectB.xy + vUv * rectB.zw);
-        float al = mix(a.a, b.a, mixT);
-        if (al < 0.32) discard;
-        vec3 col = (a.rgb * a.a * (1.0 - mixT) + b.rgb * b.a * mixT) / max(al, 1e-3);
-        gl_FragColor = vec4(col, 1.0);
-        #include <colorspace_fragment>
-      }`
-  });
-}
-const pCam = new THREE.Vector3(), pAxis = new THREE.Vector3(), pNorm = new THREE.Vector3(), pInv = new THREE.Quaternion(), pSpin = new THREE.Quaternion(), pZ = new THREE.Vector3(0, 0, 1);
 const petalUp = new THREE.Vector3(), petalTorque = new THREE.Vector3(), petalWorldUp = new THREE.Vector3(0, 1, 0), petalQ = new THREE.Quaternion();
 
 function Petal({ i, at }: { i: number; at: { x: number; z: number; k: number } }) {
   const ctx = useContext(SceneCtx);
   const rb = useRef<RapierRigidBody>(null);
-  const { camera } = useThree();
-  const sprite = useRef<THREE.Mesh>(null);
-  const view = useRef({ f: -1, rot: 0, sx: 1 });
-  const spriteGeo = useMemo(() => new THREE.PlaneGeometry(1, 1), []);
-  const spriteMat = useMemo(() => makePetalMaterial(), []);
+  const geo = usePetalGeometry();
   const s = ctx.bounds.s * at.k;
   const init = useMemo(
     () => ({
@@ -719,47 +694,16 @@ function Petal({ i, at }: { i: number; at: { x: number; z: number; k: number } }
     return () => { petals.delete(key); };
   }, [i]);
   // airborne flutter: a slow side-to-side sway and tumble, like a petal drifting through air
-  useFrame((state, delta) => {
+  useFrame(state => {
     const b = rb.current;
     if (!b) return;
     const y = b.translation().y;
     const m = b.mass(), dt = 1 / 60;
-    const fdt = Math.min(delta, 1 / 30);
     // settling: near a surface the petal is pressed back toward lying flat (it never balances on its edge);
     // in open air only a whisper of levelling so it still tumbles as it drifts
     const r = b.rotation();
     petalUp.set(0, 1, 0).applyQuaternion(petalQ.set(r.x, r.y, r.z, r.w));
     petalTorque.crossVectors(petalUp, petalWorldUp);
-    // billboard: face the camera, spin so the petal's base→tip axis matches the screen, and pick the atlas view
-    // (face-on … edge-on) from how squarely the camera looks at the petal; the underside / opposite tilt is mirrored
-    const sp = sprite.current;
-    if (sp) {
-      const pos = b.translation();
-      pCam.copy(camera.position).sub(pos).normalize();
-      const facing = petalUp.dot(pCam);
-      pInv.copy(camera.quaternion).invert();
-      pAxis.set(0, 0, 1).applyQuaternion(petalQ).applyQuaternion(pInv);
-      pNorm.copy(petalUp).applyQuaternion(pInv);
-      const V = view.current;
-      // everything the sprite shows is eased, so the petal glides between views instead of snapping
-      let rotT = V.rot;
-      if (Math.hypot(pAxis.x, pAxis.y) > 0.08) rotT = Math.atan2(-pAxis.x, pAxis.y);
-      const fT = Math.min(PETAL_FRAMES - 1, Math.pow(1 - Math.abs(facing), 0.9) * 0.95 * (PETAL_FRAMES - 1));
-      const flipT = (pNorm.x * Math.cos(rotT) + pNorm.y * Math.sin(rotT) < 0) !== (facing < 0);
-      if (V.f < 0) { V.f = fT; V.rot = rotT; V.sx = flipT ? -1 : 1; }
-      const k = 1 - Math.exp(-fdt * 9);
-      V.f += (fT - V.f) * k;
-      let dr = rotT - V.rot; dr = Math.atan2(Math.sin(dr), Math.cos(dr));
-      V.rot += dr * (1 - Math.exp(-fdt * 14));
-      V.sx += ((flipT ? -1 : 1) - V.sx) * (1 - Math.exp(-fdt * 10));      // mirror by turning the sprite through edge-on
-      const iA = Math.min(PETAL_FRAMES - 1, Math.floor(V.f)), iB = Math.min(PETAL_FRAMES - 1, iA + 1), t = V.f - iA;
-      const rect = (i: number, out: THREE.Vector4) => out.set((i % PETAL_COLS) / PETAL_COLS, 1 - (Math.floor(i / PETAL_COLS) + 1) / PETAL_ROWS, 1 / PETAL_COLS, 1 / PETAL_ROWS);
-      rect(iA, spriteMat.uniforms.rectA.value); rect(iB, spriteMat.uniforms.rectB.value);
-      spriteMat.uniforms.mixT.value = t;
-      sp.scale.set(1.05 * s * V.sx, 1.05 * s, 1);
-      sp.quaternion.copy(camera.quaternion).multiply(pSpin.setFromAxisAngle(pZ, V.rot));
-      sp.position.set(pos.x, pos.y, pos.z).addScaledVector(pCam, 0.1 * s);
-    }
     const near = y < 0.5 * s ? 1 : 0.07;
     const av = b.angvel();
     b.applyTorqueImpulse(
@@ -777,15 +721,15 @@ function Petal({ i, at }: { i: number; at: { x: number; z: number; k: number } }
       <ShadowBlob body={rb} w={0.56 * s} d={0.68 * s} strength={0.45} y={-0.14} petal />
       <RigidBody ref={rb} colliders={false} position={init.p} quaternion={init.q} gravityScale={PETAL_GRAVITY} linearDamping={3.2} angularDamping={1.1} ccd>
         <CuboidCollider args={[0.22 * s * 1.25, 0.07 * s, 0.3 * s * 1.25]} density={0.15} friction={0.6} restitution={0} />
+        <mesh
+          geometry={geo}
+          material={petalMaterial}
+          scale={s}
+          onPointerDown={e => entry.current && ctx.startDrag(entry.current, e)}
+          onPointerOver={() => !ctx.dragging.current && (document.body.style.cursor = 'grab')}
+          onPointerOut={() => !ctx.dragging.current && (document.body.style.cursor = '')}
+        />
       </RigidBody>
-      <mesh
-        ref={sprite}
-        geometry={spriteGeo}
-        material={spriteMat}
-        onPointerDown={e => entry.current && ctx.startDrag(entry.current, e)}
-        onPointerOver={() => !ctx.dragging.current && (document.body.style.cursor = 'grab')}
-        onPointerOut={() => !ctx.dragging.current && (document.body.style.cursor = '')}
-      />
     </>
   );
 }
