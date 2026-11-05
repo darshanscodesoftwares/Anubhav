@@ -13,7 +13,7 @@ gsap.registerPlugin(ScrollTrigger, SplitText, useGSAP);
 
 const N = SLIDES.length;
 /** Scroll distance per scene, in viewport heights. */
-const VH_PER_SLIDE = 1.1;
+const VH_PER_SLIDE = 1.5;
 
 const lines = (text: string) =>
   text.split('\n').map((l, i, a) => (
@@ -173,7 +173,7 @@ export function HeroScroller({ ready, onReady }: { ready: boolean; onReady: () =
           start: 'top top',
           end: () => `+=${window.innerHeight * VH_PER_SLIDE * (N - 1)}`,
           pin: true,
-          scrub: reduce ? true : 0.35,
+          scrub: reduce ? true : 0.6,
           invalidateOnRefresh: true,
           snap: getLenis() ? undefined : { snapTo: 1 / (N - 1), duration: { min: 0.3, max: 0.8 }, ease: 'power2.inOut' },
           onUpdate: () => setActive(Math.round(state.current.p))
@@ -181,15 +181,20 @@ export function HeroScroller({ ready, onReady }: { ready: boolean; onReady: () =
       });
       trigger.current = tl.scrollTrigger ?? null;
 
+      const scrim = section.current!.querySelector('.js-scrim');
       tl.to(state.current, { p: N - 1, duration: N - 1 }, 0);
       parts.forEach((p, k) => {
         if (k > 0) {
-          const at = k - 1 + 0.55;
+          // after the saree has swept past the copy side
+          const at = k - 1 + 0.62;
           tl.set(p.block, { autoAlpha: 1 }, at);
           reveal(tl, p, at);
         }
         if (k < N - 1) {
-          tl.to(p.block, { autoAlpha: 0, y: -40, filter: 'blur(10px)', duration: 0.3, ease: 'power2.in' }, k + 0.08);
+          tl.to(p.block, { autoAlpha: 0, y: -30, filter: 'blur(8px)', duration: 0.24, ease: 'power2.in' }, k + 0.03);
+          // let the sweeping saree show at full strength, then restore legibility for the next copy
+          tl.to(scrim, { opacity: 0.15, duration: 0.2 }, k + 0.05);
+          tl.to(scrim, { opacity: 1, duration: 0.3 }, k + 0.6);
         }
       });
       blocks.slice(1).forEach(b => gsap.set(b, { autoAlpha: 0 }));
@@ -213,8 +218,8 @@ export function HeroScroller({ ready, onReady }: { ready: boolean; onReady: () =
         const to = lenis.direction >= 0 ? (f > 0.03 ? Math.ceil(p) : Math.floor(p)) : f < 0.97 ? Math.floor(p) : Math.ceil(p);
         snapping = true;
         lenis.scrollTo(st.start + (to / (N - 1)) * span, {
-          duration: 1.2,
-          easing: t => 1 - Math.pow(1 - t, 3),
+          duration: 2.4,
+          easing: t => 1 - Math.pow(1 - t, 2.2),
           onComplete: () => { snapping = false; }
         });
       };
@@ -253,7 +258,7 @@ export function HeroScroller({ ready, onReady }: { ready: boolean; onReady: () =
       {noGL && <img src={SLIDES[0].image} alt="" className="absolute inset-0 h-full w-full object-cover" />}
 
       {/* soft light behind copy for legibility on every scene */}
-      <div className="pointer-events-none absolute inset-0 z-[5] bg-[radial-gradient(ellipse_55%_70%_at_12%_50%,rgba(246,232,224,0.55),transparent_70%)] max-md:bg-[linear-gradient(to_top,rgba(243,228,220,0.97)_12%,rgba(243,228,220,0.82)_40%,rgba(243,228,220,0.35)_58%,transparent_72%)]" />
+      <div className="js-scrim pointer-events-none absolute inset-0 z-[5] bg-[radial-gradient(ellipse_55%_70%_at_12%_50%,rgba(246,232,224,0.55),transparent_70%)] max-md:bg-[linear-gradient(to_top,rgba(243,228,220,0.97)_12%,rgba(243,228,220,0.82)_40%,rgba(243,228,220,0.35)_58%,transparent_72%)]" />
 
       <Petals count={window.matchMedia('(max-width: 768px)').matches ? 9 : 16} />
 

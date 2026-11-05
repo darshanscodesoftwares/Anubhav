@@ -1,25 +1,29 @@
-import type { FabricRegion, Pt, Slide } from '../data/slides';
+import type { FabricRegion, Pt, Slide, Sweep } from '../data/slides';
 
 const VERT = /* glsl */ `
 attribute vec2 aPos;
 void main() { gl_Position = vec4(aPos, 0.0, 1.0); }
 `;
 
-const frag = (samples: number) => /* glsl */ `
+const frag = (clothSamples: number) => /* glsl */ `
 precision highp float;
-#define SAMPLES ${samples}
+#define CLOTH_SAMPLES ${clothSamples}
 uniform vec2 uRes;
 uniform float uTime;
 uniform float uSway;
-uniform float uMix;
-uniform float uFlash;
 uniform float uShowMask;
 uniform vec2 uShift;
-uniform float uCropA;
-uniform float uCropB;
 
-uniform sampler2D uTexA; uniform sampler2D uMaskA; uniform float uAspA; uniform vec2 uFocA; uniform float uScaleA; uniform float uBlurA;
-uniform sampler2D uTexB; uniform sampler2D uMaskB; uniform float uAspB; uniform vec2 uFocB; uniform float uScaleB; uniform float uBlurB;
+uniform sampler2D uTexA; uniform sampler2D uMaskA; uniform float uAspA; uniform float uCropA; uniform vec2 uFocA; uniform float uScaleA;
+uniform sampler2D uTexB; uniform sampler2D uMaskB; uniform float uAspB; uniform float uCropB; uniform vec2 uFocB; uniform float uScaleB;
+uniform float uSwayB;
+
+// Saree sweep: a length of scene B's saree swings across the lens along B's flow direction.
+uniform float uSweep;       // 0 → 1 across the transition
+uniform vec2 uDir;          // unit travel direction, screen space (x in aspect units, y down)
+uniform vec2 uSwatch;       // fabric-only patch centre in B (image UV)
+uniform vec2 uHalf;         // patch half-size
+uniform float uSwatchScale;
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
 
@@ -32,9 +36,9 @@ vec2 coverUV(vec2 uv, float imgAsp, float cropX) {
 }
 
 // Mask: R = amplitude (0 at the pin, rising toward the free edge), G = phase, B = flow angle.
-vec3 fabric(sampler2D tex, sampler2D mask, float asp, vec2 uv) {
+vec3 fabric(sampler2D tex, sampler2D mask, float asp, vec2 uv, float ampMul) {
   vec4 m = texture2D(mask, uv);
-  float amp = m.r * uSway;
+  float amp = m.r * uSway * ampMul;
   if (amp < 0.003) return texture2D(tex, uv).rgb;
   float t = uTime;
   float ph = m.g * 6.2831;
@@ -55,30 +59,80 @@ vec3 fabric(sampler2D tex, sampler2D mask, float asp, vec2 uv) {
   return c;
 }
 
-vec3 shot(sampler2D tex, sampler2D mask, float asp, float crop, vec2 foc, float scale, float blur, vec2 uv, float jitter) {
+vec3 scene(sampler2D tex, sampler2D mask, float asp, float crop, vec2 foc, float scale, vec2 uv, float ampMul) {
   vec2 base = foc + (coverUV(uv, asp, crop) - foc) / scale + uShift / scale;
-  base = clamp(base, 0.0, 1.0);
-  if (blur < 0.002) return fabric(tex, mask, asp, base);
-  vec3 acc = vec3(0.0);
-  for (int i = 0; i < SAMPLES; i++) {
-    float k = (float(i) + jitter) / float(SAMPLES);
-    acc += fabric(tex, mask, asp, foc + (base - foc) * (1.0 - blur * k));
-  }
-  return acc / float(SAMPLES);
+  return fabric(tex, mask, asp, clamp(base, 0.0, 1.0), ampMul);
+}
+
+// Mirror-tile inside the swatch box so the cloth only ever shows saree fabric.
+vec2 swatchUV(vec2 o) {
+  vec2 q = o / (2.0 * uHalf) + 0.5;
+  q = 1.0 - abs(1.0 - mod(q, 2.0));
+  return uSwatch + (q - 0.5) * 2.0 * uHalf;
 }
 
 void main() {
   vec2 uv = vec2(gl_FragCoord.x / uRes.x, 1.0 - gl_FragCoord.y / uRes.y);
+  float va = uRes.x / uRes.y;
   float jitter = hash(gl_FragCoord.xy + fract(uTime));
-  vec3 col = shot(uTexA, uMaskA, uAspA, uCropA, uFocA, uScaleA, uBlurA, uv, jitter);
-  if (uMix > 0.001) {
-    vec3 b = shot(uTexB, uMaskB, uAspB, uCropB, uFocB, uScaleB, uBlurB, uv, jitter);
-    col = mix(col, b, uMix);
+  vec3 col;
+
+  if (uSweep <= 0.0) {
+    col = scene(uTexA, uMaskA, uAspA, uCropA, uFocA, uScaleA, uv, 1.0);
+  } else if (uSweep >= 1.0) {
+    col = scene(uTexB, uMaskB, uAspB, uCropB, uFocB, uScaleB, uv, uSwayB);
+  } else {
+    vec3 a = scene(uTexA, uMaskA, uAspA, uCropA, uFocA, uScaleA, uv, 1.0);
+    vec3 b = scene(uTexB, uMaskB, uAspB, uCropB, uFocB, uScaleB, uv, uSwayB);
+    float s = uSweep;
+    vec2 dir = uDir;
+    vec2 nrm = vec2(-dir.y, dir.x);
+    vec2 p = (uv - 0.5) * vec2(va, 1.0);
+    float E = 0.5 * (abs(dir.x) * va + abs(dir.y));
+    float dn = dot(p, dir) / E;              // -1…1 across the screen along travel
+    float ac = dot(p, nrm);                  // across the cloth
+
+    // Billowing leading (pallu) edge and softer trailing edge.
+    float W = 1.75;
+    float lead = mix(-1.35, 1.35 + W, s) + 0.11 * sin(ac * 4.0 + s * 7.0 + uTime * 0.8) + 0.05 * sin(ac * 10.0 - s * 12.0);
+    float trail = lead - W + 0.2 * sin(ac * 3.0 - s * 6.0 + 1.3) + 0.07 * sin(ac * 8.0 + s * 9.0);
+
+    if (dn > lead) {
+      float shadow = smoothstep(lead + 0.4, lead, dn);
+      col = a * (1.0 - 0.32 * shadow);
+    } else if (dn < trail) {
+      col = b;
+    } else {
+      float ct = (dn - trail) / (lead - trail);  // 0 trailing → 1 leading edge
+      vec3 beneath = mix(b, a, smoothstep(0.3, 0.8, ct));
+      float along = (dn - lead) * E;             // travels with the cloth
+      float fold = sin(ac * 13.0 + along * 2.5 + uTime * 1.3) * 0.6 + sin(ac * 29.0 - along * 4.0) * 0.4;
+      vec2 off = dir * along + nrm * (ac + fold * 0.012);
+      vec3 cloth = vec3(0.0);
+      for (int i = 0; i < CLOTH_SAMPLES; i++) {
+        float k = (float(i) + jitter) / float(CLOTH_SAMPLES) - 0.5;
+        vec2 o = (off + dir * k * 0.022) * uSwatchScale;
+        o.x /= uAspB;
+        cloth += texture2D(uTexB, swatchUV(o)).rgb;
+      }
+      cloth /= float(CLOTH_SAMPLES);
+      cloth *= 0.82 + 0.28 * fold;
+      float sheen = pow(max(0.0, sin(ac * 5.0 + along * 2.0 - s * 10.0)), 10.0);
+      cloth += vec3(1.0, 0.93, 0.8) * sheen * 0.4;
+      // Zari border on the pallu edge: gold that takes its light from the weave underneath, with glints.
+      float border = smoothstep(0.895, 0.925, ct) * (1.0 - smoothstep(0.962, 0.982, ct));
+      float lum = dot(cloth, vec3(0.3, 0.59, 0.11));
+      float glint = pow(hash(floor(gl_FragCoord.xy / 2.0) + floor(uTime * 10.0)), 140.0) * 1.6;
+      vec3 zari = vec3(0.93, 0.75, 0.42) * (0.55 + 0.75 * lum) + glint;
+      cloth = mix(cloth, zari, border * 0.8);
+      float alpha = mix(0.55, 0.95, smoothstep(0.05, 0.55, ct)) * smoothstep(0.0, 0.07, ct) * (1.0 - smoothstep(0.985, 1.0, ct));
+      col = mix(beneath, cloth, alpha);
+    }
   }
-  col = mix(col, vec3(1.0, 0.93, 0.86), uFlash);
+
   col += (hash(gl_FragCoord.xy * 0.37 + uTime) - 0.5) * 0.018;
   if (uShowMask > 0.5) {
-    float m = uMix > 0.5
+    float m = uSweep > 0.5
       ? texture2D(uMaskB, uFocB + (coverUV(uv, uAspB, uCropB) - uFocB) / uScaleB).r
       : texture2D(uMaskA, uFocA + (coverUV(uv, uAspA, uCropA) - uFocA) / uScaleA).r;
     col = mix(col, vec3(0.0, 0.9, 0.5), m * 0.6);
@@ -87,13 +141,14 @@ void main() {
 }
 `;
 
-const UNIFORMS = ['uRes', 'uTime', 'uSway', 'uMix', 'uFlash', 'uShowMask', 'uShift', 'uCropA', 'uCropB',
-  'uTexA', 'uMaskA', 'uAspA', 'uFocA', 'uScaleA', 'uBlurA',
-  'uTexB', 'uMaskB', 'uAspB', 'uFocB', 'uScaleB', 'uBlurB'] as const;
+const UNIFORMS = ['uRes', 'uTime', 'uSway', 'uShowMask', 'uShift', 'uSwayB',
+  'uTexA', 'uMaskA', 'uAspA', 'uCropA', 'uFocA', 'uScaleA',
+  'uTexB', 'uMaskB', 'uAspB', 'uCropB', 'uFocB', 'uScaleB',
+  'uSweep', 'uDir', 'uSwatch', 'uHalf', 'uSwatchScale'] as const;
 
 type UniformName = (typeof UNIFORMS)[number];
 
-interface Shot { tex: WebGLTexture; mask: WebGLTexture; aspect: number; focus: Pt; mobileX: number }
+interface Shot { tex: WebGLTexture; mask: WebGLTexture; aspect: number; focus: Pt; mobileX: number; sweep: Sweep }
 
 export interface RendererOptions {
   reduceMotion: boolean;
@@ -117,11 +172,8 @@ function cropX(viewAspect: number, imgAspect: number, mobileX: number) {
   return clamp01(0.5 + (mobileX - 0.5) / (1 - visible));
 }
 
-const smooth = (a: number, b: number, v: number) => { const t = clamp01((v - a) / (b - a)); return t * t * (3 - 2 * t); };
-const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-
-/** Image transition curve inside one segment: holds the first 15%, then dives. Shared with the text timeline. */
-export const segmentEase = (f: number) => easeInOut(clamp01((f - 0.15) / 0.8));
+/** Sweep progress inside one scene segment: short hold, then the cloth travels across. */
+export const sweepProgress = (f: number) => clamp01((f - 0.06) / 0.88);
 
 function loadImage(src: string) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
@@ -199,7 +251,7 @@ export class HeroRenderer {
       return s;
     };
     gl.attachShader(prog, compile(gl.VERTEX_SHADER, VERT));
-    gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, frag(opts.lowPower ? 10 : 20)));
+    gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, frag(opts.lowPower ? 3 : 6)));
     gl.linkProgram(prog);
     gl.useProgram(prog);
     gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
@@ -226,7 +278,7 @@ export class HeroRenderer {
     const imgs = await Promise.all(slides.map(s => loadImage(s.image)));
     this.shots = imgs.map((img, i) => {
       const aspect = img.naturalWidth / img.naturalHeight;
-      return { tex: this.texture(img), mask: this.texture(buildMask(slides[i].fabric, aspect)), aspect, focus: slides[i].focus, mobileX: slides[i].mobileX };
+      return { tex: this.texture(img), mask: this.texture(buildMask(slides[i].fabric, aspect)), aspect, focus: slides[i].focus, mobileX: slides[i].mobileX, sweep: slides[i].sweep };
     });
   }
 
@@ -264,7 +316,8 @@ export class HeroRenderer {
 
     const i = Math.min(Math.floor(progress), N - 2);
     const f = progress - i;
-    const e = segmentEase(f);
+    // Reduced motion: no sweeping cloth, just a cut halfway.
+    const s = motion ? sweepProgress(f) : f < 0.5 ? 0 : 1;
 
     gl.uniform2f(this.u.uRes, this.canvas.width, this.canvas.height);
     gl.uniform1f(this.u.uTime, motion ? time : 0);
@@ -272,15 +325,25 @@ export class HeroRenderer {
     gl.uniform1f(this.u.uShowMask, this.opts.showMask ? 1 : 0);
     gl.uniform2f(this.u.uShift, pointer.x * 0.004 * motion, pointer.y * 0.003 * motion);
 
-    this.bind('A', this.shots[i], 0);
-    this.bind('B', this.shots[i + 1], 2);
+    const a = this.shots[i];
+    const b = this.shots[i + 1];
+    this.bind('A', a, 0);
+    this.bind('B', b, 2);
 
-    gl.uniform1f(this.u.uScaleA, REST_SCALE * Math.pow(2.6, e * motion));
-    gl.uniform1f(this.u.uScaleB, 1 + (REST_SCALE - 1) * e);
-    gl.uniform1f(this.u.uBlurA, 0.38 * smooth(0, 0.6, e) * motion);
-    gl.uniform1f(this.u.uBlurB, 0.38 * (1 - smooth(0.4, 1, e)) * motion);
-    gl.uniform1f(this.u.uMix, smooth(0.36, 0.66, e));
-    gl.uniform1f(this.u.uFlash, Math.pow(Math.sin(Math.PI * e), 4) * 0.28 * motion);
+    // A: gentle camera push as the cloth approaches. B: settles from a slight zoom while its
+    // saree flutters harder, as if it just landed in the pose, then calms.
+    const settle = 1 - s;
+    gl.uniform1f(this.u.uScaleA, REST_SCALE * (1 + 0.07 * s * motion));
+    gl.uniform1f(this.u.uScaleB, REST_SCALE * (1 + 0.09 * settle * settle * motion));
+    gl.uniform1f(this.u.uSwayB, 1 + 1.4 * settle * motion);
+
+    const [dx, dy] = b.sweep.dir;
+    const len = Math.hypot(dx, dy) || 1;
+    gl.uniform1f(this.u.uSweep, s);
+    gl.uniform2f(this.u.uDir, dx / len, dy / len);
+    gl.uniform2f(this.u.uSwatch, b.sweep.swatch[0], b.sweep.swatch[1]);
+    gl.uniform2f(this.u.uHalf, b.sweep.half[0], b.sweep.half[1]);
+    gl.uniform1f(this.u.uSwatchScale, b.sweep.scale);
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
