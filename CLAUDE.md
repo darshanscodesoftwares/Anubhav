@@ -247,6 +247,7 @@ Owner request: append an entry here after every change session.
   after the cursor leaves. Tune: `3.2`, `0.22` and `R` in `DrapeScene.tsx`.
   Bug found: `bowl ** 1.4` went NaN at the extreme wall edge (float error → tiny negative base) and drew black slivers
   down both side walls — clamp with `Math.max(0, …)` (found by bisecting: no shape → no slivers).
+- **2026‑11‑05** — Cursor push field made stronger (owner: "make it stronger"): `R` 1.9→2.3·s, base push 3.2→7.5 m/s², cursor-velocity coupling 0.22→0.5 (`DrapeScene.tsx`). Levitation spring still eases sarees back; headless run: no console errors.
 
 ## Next / ideas
 

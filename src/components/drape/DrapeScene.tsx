@@ -433,15 +433,15 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
       if (cur.on && !ctx.dragging.current) {
         const dx = p.x - cur.x, dz = p.z - cur.z;
         const dist = Math.hypot(dx, dz);
-        const R = 1.9 * s;
+        const R = 2.3 * s;
         if (dist < R) {
           const f = (1 - dist / R) ** 2;
           const nx = dist > 1e-3 ? dx / dist : 0, nz = dist > 1e-3 ? dz / dist : 0;
-          const accel = 3.2 * f;
+          const accel = 7.5 * f;
           body.applyImpulse({
-            x: m * (nx * accel + THREE.MathUtils.clamp(cur.vx, -8, 8) * 0.22 * f) * dt,
+            x: m * (nx * accel + THREE.MathUtils.clamp(cur.vx, -8, 8) * 0.5 * f) * dt,
             y: 0,
-            z: m * (nz * accel + THREE.MathUtils.clamp(cur.vz, -8, 8) * 0.22 * f) * dt
+            z: m * (nz * accel + THREE.MathUtils.clamp(cur.vz, -8, 8) * 0.5 * f) * dt
           }, true);
         }
       }
