@@ -482,6 +482,14 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
     const S = st.current;
     const k = 62, c = 9.5;
     const lv = body.linvel();
+    // Majestic descent: cloth catches the air, so a falling bundle never exceeds a gentle terminal speed and eases to
+    // a near-stop in the last few centimetres (no thud) — applies to the opening drop-in and to released/tossed sarees.
+    if (!hovering.current && ctx.dragging.current?.key !== saree.id && lv.y < -0.3) {
+      const rest = half.y * s;
+      const aboveFloor = Math.max(0, body.translation().y - rest);
+      const vt = THREE.MathUtils.lerp(0.45, 1.7, THREE.MathUtils.smoothstep(aboveFloor, 0.04, 0.9));
+      if (lv.y < -vt) body.applyImpulse({ x: 0, y: body.mass() * (-vt - lv.y) * 40 * dt, z: 0 }, true);
+    }
     tmp.v.set(lv.x, lv.y, lv.z);
     tmp.a.subVectors(tmp.v, S.prev).divideScalar(Math.max(dt, 1e-3));
     S.prev.copy(tmp.v);
