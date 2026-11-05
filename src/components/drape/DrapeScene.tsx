@@ -370,6 +370,8 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
 
   // The top-row drapes float mid-toss (like the design board) until someone grabs them.
   const hovering = useRef(float);
+  // where it levitates: the top-row sarees return to their start; a double-clicked one stays where it was lifted
+  const hoverAt = useRef({ x: init.p.x, z: init.p.z });
   const entry = useRef<Entry | null>(null);
   useEffect(() => {
     if (!rb.current) return;
@@ -419,9 +421,9 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
       const ty = (0.62 + 0.14 * (index % 3)) * s + 0.08 * Math.sin(t * 0.9 + index * 1.7);
       const ky = 16, cy = 6.2, kh = 5, ch = 4.2;
       body.applyImpulse({
-        x: m * (kh * (init.p.x - p.x) - ch * v.x) * dt,
+        x: m * (kh * (hoverAt.current.x - p.x) - ch * v.x) * dt,
         y: m * (GRAVITY + ky * (ty - p.y) - cy * v.y) * dt,
-        z: m * (kh * (init.p.z - p.z) - ch * v.z) * dt
+        z: m * (kh * (hoverAt.current.z - p.z) - ch * v.z) * dt
       }, true);
       const r = body.rotation();
       const yaw = tmp.e.setFromQuaternion(tmp.q.set(r.x, r.y, r.z, r.w), 'YXZ').y;
@@ -563,6 +565,14 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
           entry.current.release?.();
           ctx.gust(p.x, p.z, 2.4 * s, 0.35);
           ctx.startDrag(entry.current, e);
+        }}
+        onDoubleClick={() => {
+          // double-click: let it float where it is
+          const b = rb.current;
+          if (!b) return;
+          const p = b.translation();
+          hoverAt.current = { x: p.x, z: p.z };
+          hovering.current = true;
         }}
         onPointerOver={() => !ctx.dragging.current && (document.body.style.cursor = 'grab')}
         onPointerOut={() => !ctx.dragging.current && (document.body.style.cursor = '')}

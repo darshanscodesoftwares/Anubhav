@@ -235,6 +235,10 @@ Owner request: append an entry here after every change session.
   `breeze = 0.42 + 0.16·sin(0.5t) + 0.08·sin(1.3t)` (per-bundle phase) as the minimum ripple, plus a slow gust that
   nudges the upper layers (`lagTarget` ± 0.035 x / 0.03 z). Verified by comparing frames 2 s apart: a resting saree's
   top edge/corners and borders visibly move. Tune: the `0.42` base and the `0.035/0.03` sway in `DrapeScene.tsx`.
+- **2026‑11‑05** — Double-click a saree → it levitates where it is (owner request). `Bundle` got `hoverAt` (x,z target for the
+  levitation spring — floaters still use their start position) and an `onDoubleClick` on the mesh that sets `hoverAt` to the
+  current spot and `hovering = true`; any single click/drag drops it again via the existing `release()`. Verified: dbl-click on
+  the resting yellow saree → hovers with a detached shadow; single click → lands with a contact shadow.
   Bug found: `bowl ** 1.4` went NaN at the extreme wall edge (float error → tiny negative base) and drew black slivers
   down both side walls — clamp with `Math.max(0, …)` (found by bisecting: no shape → no slivers).
 
