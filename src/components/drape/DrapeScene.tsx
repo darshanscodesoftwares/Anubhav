@@ -120,13 +120,15 @@ function ShadowBlob({ body, w, d, strength = 1, y = -0.03, petal = false }: { bo
   const CORE_ = petal ? PCORE : CORE, SOFT_ = petal ? PSOFT : SOFT;
   const core = useRef<THREE.Mesh>(null);
   const soft = useRef<THREE.Mesh>(null);
+  const seam = useRef<THREE.Mesh>(null);
   const coreMat = useMemo(() => new THREE.MeshBasicMaterial({ map: CORE_.tex, transparent: true, depthWrite: false, toneMapped: false }), []);
+  const seamMat = useMemo(() => new THREE.MeshBasicMaterial({ map: CORE_.tex, transparent: true, depthWrite: false, toneMapped: false }), []);
   const softMat = useMemo(() => new THREE.MeshBasicMaterial({ map: SOFT_.tex, transparent: true, depthWrite: false, toneMapped: false }), []);
   const e = useMemo(() => new THREE.Euler(), []);
   const q = useMemo(() => new THREE.Quaternion(), []);
   useFrame(() => {
     const b = body.current;
-    if (!b || !core.current || !soft.current) return;
+    if (!b || !core.current || !soft.current || !seam.current) return;
     const p = b.translation();
     const r = b.rotation();
     e.setFromQuaternion(q.set(r.x, r.y, r.z, r.w), 'YXZ');
@@ -141,6 +143,11 @@ function ShadowBlob({ body, w, d, strength = 1, y = -0.03, petal = false }: { bo
     core.current.rotation.y = e.y;
     core.current.scale.set((w * 1.04) / CORE_.frac, 1, (d * 1.06) / CORE_.frac);
     coreMat.opacity = 0.7 * touch * strength;
+    // contact seam: a tight, dark, un-offset footprint right under the body — the thin line where it meets the floor
+    seam.current.position.set(p.x, y + 0.005, p.z);
+    seam.current.rotation.y = e.y;
+    seam.current.scale.set((w * 0.98) / CORE_.frac, 1, (d * 0.98) / CORE_.frac);
+    seamMat.opacity = 0.6 * touch * touch * strength;
 
     const sOff = size * 0.12 + gap * 0.42;
     soft.current.position.set(p.x + SHADOW_DIR.x * sOff, y + 0.003, p.z + SHADOW_DIR.y * sOff);
@@ -153,6 +160,7 @@ function ShadowBlob({ body, w, d, strength = 1, y = -0.03, petal = false }: { bo
     <>
       <mesh ref={soft} geometry={shadowGeo} material={softMat} renderOrder={-2} />
       <mesh ref={core} geometry={shadowGeo} material={coreMat} renderOrder={-1} />
+      <mesh ref={seam} geometry={shadowGeo} material={seamMat} renderOrder={0} />
     </>
   );
 }
