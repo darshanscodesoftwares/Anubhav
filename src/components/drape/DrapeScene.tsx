@@ -90,7 +90,7 @@ const SHADOW_DIR = new THREE.Vector2(-0.78, 0.62).normalize();
  *  - penumbra layer: grows larger, softer and fainter with height
  * Both slide down-left (away from the key light) as the object rises.
  */
-function ShadowBlob({ body, w, d, strength = 1 }: { body: React.RefObject<RapierRigidBody | null>; w: number; d: number; strength?: number }) {
+function ShadowBlob({ body, w, d, strength = 1, y = 0 }: { body: React.RefObject<RapierRigidBody | null>; w: number; d: number; strength?: number; y?: number }) {
   const core = useRef<THREE.Mesh>(null);
   const soft = useRef<THREE.Mesh>(null);
   const coreMat = useMemo(() => new THREE.MeshBasicMaterial({ map: CORE.tex, transparent: true, depthWrite: false, toneMapped: false }), []);
@@ -110,13 +110,13 @@ function ShadowBlob({ body, w, d, strength = 1 }: { body: React.RefObject<Rapier
     const lift = THREE.MathUtils.clamp(gap / 3, 0, 1);
 
     const cOff = size * 0.05;
-    core.current.position.set(p.x + SHADOW_DIR.x * cOff, 0.004, p.z + SHADOW_DIR.y * cOff);
+    core.current.position.set(p.x + SHADOW_DIR.x * cOff, y + 0.004, p.z + SHADOW_DIR.y * cOff);
     core.current.rotation.y = e.y;
     core.current.scale.set((w * 1.04) / CORE.frac, 1, (d * 1.06) / CORE.frac);
     coreMat.opacity = 0.62 * touch * strength;
 
     const sOff = size * 0.12 + gap * 0.42;
-    soft.current.position.set(p.x + SHADOW_DIR.x * sOff, 0.003, p.z + SHADOW_DIR.y * sOff);
+    soft.current.position.set(p.x + SHADOW_DIR.x * sOff, y + 0.003, p.z + SHADOW_DIR.y * sOff);
     soft.current.rotation.y = e.y;
     const spread = 1.12 + lift * 0.7;
     soft.current.scale.set((w * spread) / SOFT.frac, 1, (d * spread) / SOFT.frac);
@@ -537,9 +537,10 @@ function Petal({ i, at }: { i: number; at: { x: number; z: number; k: number } }
   });
   return (
     <>
-      <ShadowBlob body={rb} w={0.42 * s} d={0.42 * s} strength={0.45} />
+      {/* y: sprites sit below the cupped petal so the shadow never cuts through its body */}
+      <ShadowBlob body={rb} w={0.42 * s} d={0.42 * s} strength={0.45} y={-0.14} />
       <RigidBody ref={rb} colliders={false} position={init.p} quaternion={init.q} gravityScale={PETAL_GRAVITY} linearDamping={3.2} angularDamping={1.1} ccd>
-        <CuboidCollider args={[0.25 * s, 0.04 * s, 0.3 * s]} density={0.15} friction={0.6} restitution={0} />
+        <CuboidCollider args={[0.22 * s * 1.25, 0.07 * s, 0.3 * s * 1.25]} density={0.15} friction={0.6} restitution={0} />
         <mesh
           geometry={geo}
           material={petalMaterial}

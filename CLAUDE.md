@@ -42,7 +42,7 @@ Palette: blush `#f3e4dc`, ink `#3a2418`, gold `#b08440`. Copy: kicker (letter-sp
     drag-and-throw (velocity-driven toward a lift plane, gravity off while held, throw keeps release velocity), saree bundles, rose petals, two-layer soft shadows.
   - `fabric.ts` — `makeFabricMaps` (per-texture: tints the silk ground only + detects gold zari → roughness/metalness map) · pillowy rounded bundle geometry (keeps BoxGeometry face groups/UVs) + **saree wobble** vertex deform:
     layer lag (top layers trail acceleration), edge flutter wave with speed, soft slump on landing, held droop (`uHold` + `uGrab`: cloth sags away from the grab point while picked up); JS springs per bundle (Soft vs Firm).
-  - `models.tsx` — curled rose petal geometry (base→tip colour) + material.
+  - `models.tsx` — lotus/rose petal: parametric cupped surface (pointed tip, lengthwise curl, rippled edge) + painted canvas texture (deep rim/tip → pale centre, faint veins) with a translucent self-glow material.
   - `data.ts` — sarees (name, fabric, note, tags, sheen) + filter chips.
   - Assets: `public/drape/` top-*/edge-* textures and cut-* fallbacks (from owner's `assets/Bundle textures…` + `assets/Transparent cut-outs…`).
 
@@ -175,6 +175,12 @@ Owner request: append an entry here after every change session.
   paragraph now render in a layer *below* the (transparent) canvas, so sarees and petals occlude the text; chips and the
   logo stay above. The "View Collection" link needs clicks, so it lives in the top overlay with an invisible twin
   of the paragraph (and an invisible link twin in the behind layer) keeping both layouts identical.
+- **2026‑11‑05** — Petals redrawn from the owner's reference photo (cupped lotus petal, not flat): `usePetalGeometry` is a
+  28×18 parametric surface (u base→tip, v edge→edge; width profile `sin(π·u^0.72)^0.85`, cup `0.11·|v|^1.7`, curl, ripples);
+  collider is now 0.22·1.25 × 0.07 × 0.3·1.25. Texture painted per-pixel (deep `#d64270` rim/base/tip → pale `#fde4e9`
+  centre + faint veins); material roughness 0.55, sheen, low env, `emissiveMap` = colour map @0.42 to mimic translucency.
+  Bug found: floor shadow sprites (plane y≈0.004) cut through a resting petal's cupped bottom and showed as a grey
+  lens in the pale centre — petal `ShadowBlob` now takes `y={-0.14}` so sprites sit below the cup.
 
 ## Next / ideas
 
