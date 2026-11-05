@@ -197,6 +197,9 @@ Owner request: append an entry here after every change session.
   Vertex shader: distance outside the support rect → `smoothstep(0.02,1.15)`·`uSag`·0.62·halfY downward + 0.05 inward pull,
   so only the overhang drapes; `uSag` springs (k46/c9) to 1 when supported, 0 otherwise. Colliders unchanged (visual only).
   Verified by state: yellow resting on black at y 0.87 → sag 1, support offset (−1.09,−0.69).
+- **2026‑11‑05** — Stack bend fix (owner: "still not bending"): detection required *my centre* over the lower footprint, so a
+  bundle hanging mostly off an edge (the case that most needs to bend) was ignored → now any footprint overlap counts
+  (|offset| < 1.9·half). Bend is a hinge at the support edge: `pow(clamp(over/1.2),1.25)·1.5·halfY` + 0.08 inward.
 
 ## Next / ideas
 

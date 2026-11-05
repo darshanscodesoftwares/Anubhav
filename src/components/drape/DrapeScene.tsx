@@ -475,10 +475,10 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
         const wx = bp.x - ap.x, wz = bp.z - ap.z;
         const br = ob.rotation();
         const by = new THREE.Euler().setFromQuaternion(new THREE.Quaternion(br.x, br.y, br.z, br.w), 'YXZ').y;
-        // my centre must sit over the other bundle's footprint (in its frame)
+        // footprints must overlap (in its frame); my centre may hang past its edge
         const cb = Math.cos(by), sb = Math.sin(by);
         const mx = -wx * cb - wz * sb, mz = wx * sb - wz * cb;
-        if (Math.abs(mx) > (half.x + 0.25) * s || Math.abs(mz) > (half.z + 0.25) * s) return;
+        if (Math.abs(mx) > half.x * 1.9 * s || Math.abs(mz) > half.z * 1.9 * s) return;
         support = { sx: (wx * ca - wz * sa) / s, sz: (wx * sa + wz * ca) / s, dyaw: by - ay };
       });
     }

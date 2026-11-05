@@ -126,9 +126,10 @@ export function applyFabricDeform(material: THREE.Material, U: FabricUniforms) {
         vec2 pl = transformed.xz - uSup.xy;
         vec2 pb = vec2(uSupRot.x * pl.x + uSupRot.y * pl.y, -uSupRot.y * pl.x + uSupRot.x * pl.y);
         float over = length(max(abs(pb) - uSup.zw, 0.0));
-        float sag = uSag * smoothstep(0.02, 1.15, over);
-        transformed.y -= sag * uHalf.y * 0.62;
-        transformed.xz -= normalize(pl + 1e-4) * sag * 0.05;`
+        // hinge at the support's edge: bends from the edge outward, deeper the further it overhangs
+        float sag = uSag * pow(clamp(over / 1.2, 0.0, 1.0), 1.25);
+        transformed.y -= sag * uHalf.y * 1.5;
+        transformed.xz -= normalize(pl + 1e-4) * sag * 0.08;`
       );
   };
   material.customProgramCacheKey = () => 'saree-fabric';
