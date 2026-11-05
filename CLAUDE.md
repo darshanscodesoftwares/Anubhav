@@ -181,6 +181,11 @@ Owner request: append an entry here after every change session.
   centre + faint veins); material roughness 0.55, sheen, low env, `emissiveMap` = colour map @0.42 to mimic translucency.
   Bug found: floor shadow sprites (plane y≈0.004) cut through a resting petal's cupped bottom and showed as a grey
   lens in the pale centre — petal `ShadowBlob` now takes `y={-0.14}` so sprites sit below the cup.
+- **2026‑11‑05** — Collision fixes (petal sank into a saree): the bundle's visual top (pillow `bulge` 0.09 + wrinkles) rose
+  ~0.1 above its collider, so petals rested inside the cloth → bundle `RoundCuboidCollider` now taller by `BULGE_PAD`
+  (0.06 each way, shifted up 0.06·s) to match the visible shape. Petals also stood on their edge against sarees →
+  per-frame **settle torque** in `Petal` (cross(petalUp, worldUp)·2.6 when y < 0.5·s, 0.07 in open air so they still
+  tumble) plus slight spin damping; verified by reading rigid-body state (all resting petals flat=1.00).
 
 ## Next / ideas
 

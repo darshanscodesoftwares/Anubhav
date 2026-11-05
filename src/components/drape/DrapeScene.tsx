@@ -260,6 +260,9 @@ function useDragController(bounds: Bounds) {
 /** Top row floats mid-toss (like the design board); the bottom two rest on the surface. */
 const FLOATING: Saree['id'][] = ['ivory', 'maroon', 'navy'];
 
+/** half of the pillow/wrinkle height above the base box (see makeBundleGeometry) */
+const BULGE_PAD = 0.06;
+
 const BUNDLE = { w: 2.2, h: 0.5, d: 1.5, r: 0.17, bulge: 0.09 };
 
 function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; at: { x: number; z: number; ry: number }; index: number; dim: boolean; hop: number; float?: boolean }) {
@@ -469,8 +472,11 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
       angularDamping={2.2}
       ccd
     >
+      {/* Collider covers the visible shape: the pillowed top + wrinkles rise ~BUNDLE.bulge above the base box, so it is
+          taller and shifted up by half of that — otherwise petals settle inside the cloth. */}
       <RoundCuboidCollider
-        args={[(BUNDLE.w / 2 - BUNDLE.r) * s, (BUNDLE.h / 2 - BUNDLE.r) * s, (BUNDLE.d / 2 - BUNDLE.r) * s, BUNDLE.r * s]}
+        position={[0, BULGE_PAD * s, 0]}
+        args={[(BUNDLE.w / 2 - BUNDLE.r) * s, (BUNDLE.h / 2 + BULGE_PAD - BUNDLE.r) * s, (BUNDLE.d / 2 - BUNDLE.r) * s, BUNDLE.r * s]}
         density={1.1}
         friction={1.25}
         restitution={0.04}
@@ -504,6 +510,8 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
 /* ------------------------------------------------------------------ petals */
 
 /** Light rose petal: floats down slowly (low gravity, high drag), can be picked up and tossed like the drapes. */
+const petalUp = new THREE.Vector3(), petalTorque = new THREE.Vector3(), petalWorldUp = new THREE.Vector3(0, 1, 0), petalQ = new THREE.Quaternion();
+
 function Petal({ i, at }: { i: number; at: { x: number; z: number; k: number } }) {
   const ctx = useContext(SceneCtx);
   const geo = usePetalGeometry();
@@ -529,9 +537,20 @@ function Petal({ i, at }: { i: number; at: { x: number; z: number; k: number } }
     const b = rb.current;
     if (!b) return;
     const y = b.translation().y;
+    const m = b.mass(), dt = 1 / 60;
+    // settling: near a surface the petal is pressed back toward lying flat (it never balances on its edge);
+    // in open air only a whisper of levelling so it still tumbles as it drifts
+    const r = b.rotation();
+    petalUp.set(0, 1, 0).applyQuaternion(petalQ.set(r.x, r.y, r.z, r.w));
+    petalTorque.crossVectors(petalUp, petalWorldUp);
+    const near = y < 0.5 * s ? 1 : 0.07;
+    const av = b.angvel();
+    b.applyTorqueImpulse(
+      { x: (petalTorque.x * 2.6 * near - av.x * 0.06) * m * dt, y: 0, z: (petalTorque.z * 2.6 * near - av.z * 0.06) * m * dt },
+      true
+    );
     if (y < 0.12) return;
     const t = state.clock.elapsedTime + i * 1.3;
-    const m = b.mass(), dt = 1 / 60;
     b.applyImpulse({ x: Math.sin(t * 1.7) * 0.9 * m * dt, y: 0, z: Math.cos(t * 1.3) * 0.7 * m * dt }, true);
     b.applyTorqueImpulse({ x: Math.sin(t * 2.1) * 0.004 * m * dt, y: 0, z: Math.cos(t * 1.9) * 0.004 * m * dt }, true);
   });
