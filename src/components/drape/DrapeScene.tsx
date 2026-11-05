@@ -632,6 +632,45 @@ function Petal({ i, at }: { i: number; at: { x: number; z: number; k: number } }
   );
 }
 
+/**
+ * Pre-uploads every texture to the GPU and compiles the shaders in small idle slices, while the scene is still hidden,
+ * so the first visible frame never stalls. (three only does this lazily, on the first render that draws a material.)
+ */
+function Warm({ ready }: { ready: boolean }) {
+  const { gl, scene, camera } = useThree();
+  useEffect(() => {
+    if (!ready) return;
+    let cancelled = false;
+    const textures = new Set<THREE.Texture>();
+    scene.traverse(o => {
+      const mats = (o as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
+      if (!mats) return;
+      for (const m of Array.isArray(mats) ? mats : [mats]) {
+        const mm = m as THREE.MeshPhysicalMaterial;
+        [mm.map, mm.roughnessMap, mm.metalnessMap, mm.emissiveMap].forEach(t => t && textures.add(t));
+      }
+    });
+    const queue = [...textures];
+    const slice = (cb: () => void) => ('requestIdleCallback' in window ? window.requestIdleCallback(cb, { timeout: 400 }) : globalThis.setTimeout(cb, 30));
+    const step = () => {
+      if (cancelled) return;
+      const t = queue.shift();
+      if (t) {
+        gl.initTexture(t);
+        slice(step);
+      } else {
+        // shader programs compile on the GPU driver's own threads when the extension exists
+        (gl as THREE.WebGLRenderer & { compileAsync?: (s: THREE.Object3D, c: THREE.Camera) => Promise<unknown> })
+          .compileAsync?.(scene, camera)
+          .catch(() => {});
+      }
+    };
+    slice(step);
+    return () => { cancelled = true; };
+  }, [ready, gl, scene, camera]);
+  return null;
+}
+
 /* ------------------------------------------------------------------ scene */
 
 function World({ bounds, filter }: DrapeSceneProps & { bounds: Bounds }) {
@@ -681,6 +720,7 @@ function World({ bounds, filter }: DrapeSceneProps & { bounds: Bounds }) {
   const s = bounds.s;
   return (
     <SceneCtx.Provider value={ctx}>
+      <Warm ready={mounted >= LAYOUT.saree.length} />
       {LAYOUT.saree.map((l, i) => {
         if (i >= mounted) return null;
         const saree = SAREES.find(x => x.id === l.id)!;

@@ -63,13 +63,21 @@ export function DrapeSection() {
 
   useEffect(() => {
     const el = root.current!;
-    // Mount the 3D scene only once the browser is idle, so its download and setup never compete with the hero.
-    const idle = (cb: () => void) => ('requestIdleCallback' in window ? window.requestIdleCallback(cb, { timeout: 2500 }) : globalThis.setTimeout(cb, 300));
-    const near = new IntersectionObserver(([e]) => e.isIntersecting && idle(() => setMounted(true)), { rootMargin: '900px 0px' });
+    // Warm the 3D scene up in the quiet time right after page load — while the visitor is still in the hero — so
+    // that reaching this section only has to start the animation (no download, shader compile or texture upload).
+    const idle = (cb: () => void) => ('requestIdleCallback' in window ? window.requestIdleCallback(cb, { timeout: 3000 }) : globalThis.setTimeout(cb, 400));
+    let warm = 0;
+    const start = () => { warm = globalThis.setTimeout(() => idle(() => setMounted(true)), 1200) as unknown as number; };
+    if (document.readyState === 'complete') start();
+    else window.addEventListener('load', start, { once: true });
+    // fallback: if they scroll here before the warm-up fired, mount now
+    const near = new IntersectionObserver(([e]) => e.isIntersecting && setMounted(true), { rootMargin: '1500px 0px' });
     const vis = new IntersectionObserver(([e]) => setActive(e.isIntersecting), { threshold: 0.15 });
     near.observe(el);
     vis.observe(el);
     return () => {
+      globalThis.clearTimeout(warm);
+      window.removeEventListener('load', start);
       near.disconnect();
       vis.disconnect();
     };

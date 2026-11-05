@@ -216,6 +216,16 @@ Owner request: append an entry here after every change session.
   edge texture (≈60 uploads → ≈40); (3) sarees mount one per animation frame, so no single frame stalls; (4) the scene
   mounts on `requestIdleCallback` once the section is near. Longest main-thread task went 359 ms → ~105 ms.
   Tried and reverted: pre-decoding textures with `Image.decode()` (no gain, delayed the scene).
+- **2026‑11‑05** — Owner: "it glitches 2–3 times before coming into the section while I scroll there." Cause: my staggered
+  mount (one bundle per frame) ran *during the scroll toward the section* (scene started 900 px away), so each saree's GPU
+  upload landed as its own hitch. Fix = move all the heavy work to the quiet time after page load: `DrapeSection` mounts the
+  scene ~1.2 s after `load` on an idle callback (fallback: 1500 px-away observer), and a `Warm` component inside the scene
+  calls `gl.initTexture` for every texture in idle slices, then `gl.compileAsync` — so the first visible frame has nothing
+  left to do. Frame recorder (headless, production build, wheel-scrolling hero → section): hitches >60 ms 1 → 0, worst frame
+  400 ms → 17 ms; also 0 when scrolling immediately after load. Trade-off: those ~6 uploads (67–100 ms each in headless
+  Chrome) now happen in the first ~3 s after load, while the visitor is still in the hero. Tried and reverted (no measured gain):
+  `Image.decode()` first, and flipping to `ImageBitmap` (just moved the cost into `createImageBitmap`).
+  Note: headless Chrome probably uses a software GL path, so absolute per-texture costs will differ on a real GPU.
   Bug found: `bowl ** 1.4` went NaN at the extreme wall edge (float error → tiny negative base) and drew black slivers
   down both side walls — clamp with `Math.max(0, …)` (found by bisecting: no shape → no slivers).
 
