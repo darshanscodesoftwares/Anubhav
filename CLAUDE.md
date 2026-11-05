@@ -272,6 +272,7 @@ Owner request: append an entry here after every change session.
 - **2026‑11‑05** — Owner: revert the petal work. `DrapeScene.tsx` and `models.tsx` restored to `89bdb56` (painted-canvas petal mesh, teardrop shadow, greenish-yellow base); the photo petal, 12-view sprite petals and 3D photo petal (`cb155ba`…`0e70380`, in git history) are no longer in use, and `public/drape/petal-face.webp` was removed. Kept: all saree changes, and the owner's `Pink Rose Petal Animation Grid.png` asset. Note: in that version the yellow sits on the u = 0 end, which the owner earlier said was the wrong end.
 - **2026‑11‑05** — Owner: move the greenish-yellow to the opposite end of the petal. In `makePetalTexture` the `yg` mask now uses `1 - u` (yellow at the pointed `u = 1` end instead of the `u = 0` end).
 - **2026‑11‑05** — Owner: tone the petal's greenish-yellow down and whiter: colour `rgb(228,222,104)` → `rgb(242,238,172)`, strength ×1.1 → ×0.85 (`yg` mix in `makePetalTexture`).
+- **2026‑11‑05** — Owner: petal lines looked like onion peels. In `makePetalTexture` the veins are now a low-frequency, smooth wave (`sin(v·(2.2+3.2u)·3.1 + warp)`, ≈ 7–17 soft ridges instead of 20–50 hard ones), without the `ss` step and at 0.05 amplitude (was 0.09), so the petal shows gentle shading instead of stripes. Tune `vein`/`streak` in `models.tsx`.
 
 ## Next / ideas
 

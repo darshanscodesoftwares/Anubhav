@@ -64,8 +64,8 @@ function makePetalTexture() {
       const v = (x / (W - 1)) * 2 - 1;
       const e = Math.abs(v);
       // veins run along the length and fan out from the base
-      const vein = 0.5 + 0.5 * Math.sin((v * (6 + 10 * u)) * 3.1 + Math.sin(u * 5 + v * 2) * 0.6);
-      const streak = ss(0.35, 1, vein) * 0.09 * (1 - e * 0.6);
+      const vein = 0.5 + 0.5 * Math.sin((v * (2.2 + 3.2 * u)) * 3.1 + Math.sin(u * 3.1 + v * 1.7) * 0.9);
+      const streak = vein * 0.05 * (1 - e * 0.5);
       // pale in the middle of the body; deeper toward the rim, the base and (strongly) the tip
       let f = 0.1 + 0.85 * ss(0.3, 1, e) + 0.55 * ss(0.78, 1, u) + 0.4 * (1 - ss(0, 0.2, u)) - 0.18 * (1 - e) * ss(0.2, 0.7, u) * (1 - ss(0.7, 1, u));
       f = Math.min(1, Math.max(0, f)) + streak;
