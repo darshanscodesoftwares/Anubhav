@@ -6,6 +6,7 @@ import { Loader } from './components/Loader';
 import { ScrollIndicator } from './components/ScrollIndicator';
 import { HeroScroller } from './components/HeroScroller';
 import { Collections, Footer } from './components/Collections';
+import { DrapeSection } from './components/drape/DrapeSection';
 
 export default function App() {
   const [ready, setReady] = useState(false);
@@ -31,6 +32,7 @@ export default function App() {
       <ScrollIndicator />
       <main>
         <HeroScroller ready={ready} onReady={onReady} />
+        <DrapeSection />
         <Collections />
       </main>
       <Footer />
