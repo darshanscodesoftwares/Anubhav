@@ -141,13 +141,13 @@ export function DrapeSection() {
 
       {/* 2D "tension arcs" around a held saree — driven by the scene while one is being dragged */}
       <div ref={arcs} className="pointer-events-none absolute inset-0 z-[5]" aria-hidden>
-        <span className="absolute left-0 top-0 h-[58px] w-[60px] opacity-0 [&_img]:-scale-x-100">
-          <img src="/drape/arc-big.png" alt="" width="60" height="58" draggable={false} className="absolute left-0 top-0 block max-w-none" />
-          <img src="/drape/arc-small.png" alt="" width="60" height="58" draggable={false} className="absolute left-0 top-0 block max-w-none" />
+        <span className="absolute left-0 top-0 h-[33px] w-[34px] opacity-0 [&_img]:-scale-x-100">
+          <img src="/drape/arc-big.png" alt="" width="34" height="33" draggable={false} className="absolute left-0 top-0 block max-w-none" />
+          <img src="/drape/arc-small.png" alt="" width="34" height="33" draggable={false} className="absolute left-0 top-0 block max-w-none" />
         </span>
-        <span className="absolute left-0 top-0 h-[58px] w-[60px] opacity-0">
-          <img src="/drape/arc-big.png" alt="" width="60" height="58" draggable={false} className="absolute left-0 top-0 block max-w-none" />
-          <img src="/drape/arc-small.png" alt="" width="60" height="58" draggable={false} className="absolute left-0 top-0 block max-w-none" />
+        <span className="absolute left-0 top-0 h-[33px] w-[34px] opacity-0">
+          <img src="/drape/arc-big.png" alt="" width="34" height="33" draggable={false} className="absolute left-0 top-0 block max-w-none" />
+          <img src="/drape/arc-small.png" alt="" width="34" height="33" draggable={false} className="absolute left-0 top-0 block max-w-none" />
         </span>
       </div>
 
