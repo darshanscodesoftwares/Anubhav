@@ -272,8 +272,9 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
   const ctx = useContext(SceneCtx);
   const rb = useRef<RapierRigidBody>(null);
   const s = ctx.bounds.s;
-  const half = useMemo(() => new THREE.Vector3(BUNDLE.w / 2, BUNDLE.h / 2, BUNDLE.d / 2), []);
-  const geometry = useMemo(() => makeBundleGeometry(BUNDLE.w, BUNDLE.h, BUNDLE.d, BUNDLE.r, BUNDLE.bulge), []);
+  const bh = saree.shape?.h ?? BUNDLE.h; // thickness (flat sarees are lower)
+  const half = useMemo(() => new THREE.Vector3(BUNDLE.w / 2, bh / 2, BUNDLE.d / 2), [bh]);
+  const geometry = useMemo(() => makeBundleGeometry(BUNDLE.w, bh, BUNDLE.d, BUNDLE.r, BUNDLE.bulge, saree.shape), [bh, saree.shape]);
   const U = useMemo(() => makeFabricUniforms(half), [half]);
   const [top, edge] = useTexture([`/drape/top-${saree.id}.webp`, `/drape/edge-${saree.id}.webp`]);
 
@@ -511,7 +512,7 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
           taller and shifted up by half of that — otherwise petals settle inside the cloth. */}
       <RoundCuboidCollider
         position={[0, BULGE_PAD * s, 0]}
-        args={[(BUNDLE.w / 2 - BUNDLE.r) * s, (BUNDLE.h / 2 + BULGE_PAD - BUNDLE.r) * s, (BUNDLE.d / 2 - BUNDLE.r) * s, BUNDLE.r * s]}
+        args={[(BUNDLE.w / 2 - BUNDLE.r) * s, (bh / 2 + BULGE_PAD - BUNDLE.r) * s, (BUNDLE.d / 2 - BUNDLE.r) * s, BUNDLE.r * s]}
         density={1.1}
         friction={1.25}
         restitution={0.04}

@@ -202,6 +202,13 @@ Owner request: append an entry here after every change session.
   (|offset| < 1.9·half). Bend is a hinge at the support edge: `pow(clamp(over/1.2),1.25)·1.5·halfY` + 0.08 inward.
 - **2026‑11‑05** — Stack bend stronger ("still a little more"): hinge now `pow(clamp(over/0.95),1.1)·2.3·halfY` + 0.12 inward
   (was /1.2, 1.25, 1.5, 0.08) — the overhang slopes down visibly past the edge.
+- **2026‑11‑05** — Yellow organza saree redrawn to match the owner's board photo (flat, a little hollow in the centre,
+  folded layers): new optional `Saree.shape` (`BundleShape` in `fabric.ts`: h, hollow, rim, ridge, layers, wave) consumed by
+  `makeBundleGeometry` — lower body (h 0.36 vs 0.5), centre dips 0.13, rim rises 0.12 (rolled, rounded at the very edge),
+  rippled rim, sine-spaced ridges pushed outward along the side walls (5.5 layers). Per-saree thickness feeds `half`, the
+  geometry and the collider (`bh`); other sarees keep the pillow. Rounding radii now clamp to the bundle's thickness.
+  Bug found: `bowl ** 1.4` went NaN at the extreme wall edge (float error → tiny negative base) and drew black slivers
+  down both side walls — clamp with `Math.max(0, …)` (found by bisecting: no shape → no slivers).
 
 ## Next / ideas
 

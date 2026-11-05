@@ -8,6 +8,8 @@ export const TAGS: { tag: Tag; dot: string }[] = [
   { tag: 'Festive', dot: '#d79a25' }
 ];
 
+import type { BundleShape } from './fabric';
+
 export interface Saree {
   id: 'maroon' | 'ivory' | 'navy' | 'black' | 'yellow';
   name: string;
@@ -23,6 +25,8 @@ export interface Saree {
   zari: number;
   /** surface model: silk = anisotropic weave highlight, velvet = soft pile sheen, organza = fine light sheen */
   weave: 'silk' | 'velvet' | 'organza';
+  /** optional flat/hollow/layered shape instead of the default pillow */
+  shape?: BundleShape;
 }
 
 export const SAREES: Saree[] = [
@@ -30,5 +34,5 @@ export const SAREES: Saree[] = [
   { id: 'ivory', name: 'Ivory Organza', fabric: 'Organza · resham florals', note: 'Featherlight, with hand-embroidered pink blooms and a gota border.', tags: ['Organza', 'Bridal'], sheen: '#fff1e2', tint: '#ffffff', roughness: 0.42, zari: 0.9, weave: 'organza' },
   { id: 'navy', name: 'Midnight Velvet', fabric: 'Velvet · zardozi', note: 'Deep navy pile with raised gold zardozi and ruby stones.', tags: ['Velvet', 'Festive'], sheen: '#5d6bd6', tint: '#a3abf2', roughness: 0.85, zari: 1, weave: 'velvet' },
   { id: 'black', name: 'Noir Silk', fabric: 'Silk · crimson resham', note: 'Black silk with crimson and gold florals for evening occasions.', tags: ['Silk', 'Festive'], sheen: '#ffd2b0', tint: '#5a5c66', roughness: 0.46, zari: 1, weave: 'silk' },
-  { id: 'yellow', name: 'Haldi Organza', fabric: 'Organza · chikan', note: 'Sunlit yellow with ivory thread florals — a haldi favourite.', tags: ['Organza', 'Festive'], sheen: '#fff4c8', tint: '#fff2d8', roughness: 0.42, zari: 0.15, weave: 'organza' }
+  { id: 'yellow', name: 'Haldi Organza', fabric: 'Organza · chikan', note: 'Sunlit yellow with ivory thread florals — a haldi favourite.', tags: ['Organza', 'Festive'], sheen: '#fff4c8', tint: '#fff2d8', roughness: 0.42, zari: 0.15, weave: 'organza', shape: { h: 0.36, hollow: 0.13, rim: 0.12, ridge: 0.035, layers: 5.5, wave: 0.03 } }
 ];

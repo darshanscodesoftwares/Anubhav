@@ -5,12 +5,29 @@ import * as THREE from 'three';
  * per side: the FRONT (+z) gets a big, almost full-height round — the fold where the cloth turns over — while the
  * back and sides stay tighter. The top gets a soft pillow and faint wrinkles. Normals are analytic for smooth shading.
  */
-export function makeBundleGeometry(w: number, h: number, d: number, r: number, bulge: number) {
+/** Optional "laid flat, hollow in the middle, folded layers" look (e.g. the yellow organza). */
+export interface BundleShape {
+  /** bundle thickness (default BUNDLE.h) */
+  h?: number;
+  /** how far the centre of the top dips below the rim */
+  hollow: number;
+  /** how far the rim rises above the base surface */
+  rim: number;
+  /** outward ridge depth and count of the stacked fold layers visible on the sides */
+  ridge: number;
+  layers: number;
+  /** soft undulation of the rim */
+  wave: number;
+}
+
+export function makeBundleGeometry(w: number, h: number, d: number, r: number, bulge: number, shape?: BundleShape) {
   const g = new THREE.BoxGeometry(w, h, d, 48, 10, 36);
   const pos = g.attributes.position as THREE.BufferAttribute;
   const nor = g.attributes.normal as THREE.BufferAttribute;
   const half = new THREE.Vector3(w / 2, h / 2, d / 2);
-  const rFront = h * 0.48;
+  // keep the rounding radii safely below half the thickness so thin bundles don't collapse into a pill
+  r = Math.min(r, half.y * 0.62);
+  const rFront = Math.min(h * 0.48, half.y * 0.8);
   const p = new THREE.Vector3();
   const c = new THREE.Vector3();
   const n = new THREE.Vector3();
@@ -33,9 +50,25 @@ export function makeBundleGeometry(w: number, h: number, d: number, r: number, b
     }
     const t = (p.y + half.y) / (2 * half.y);
     const ux = p.x / half.x, uz = p.z / half.z;
-    // pillow + faint cloth wrinkles on the upper layers
-    p.y += bulge * t * (1 - ux * ux) * (1 - uz * uz);
-    p.y += t * h * (0.025 * Math.sin(ux * 7.3 + uz * 2.1) * Math.sin(uz * 5.7 - ux * 1.3) + 0.012 * Math.sin(ux * 19 + uz * 11));
+    if (shape) {
+      // flat, hollowed folded cloth: raised soft rim, dipped middle, layered sides, gently wavy edge
+      const edgeDist = Math.max(Math.abs(ux), Math.abs(uz));
+      const rimK = THREE.MathUtils.smoothstep(edgeDist, 0.4, 0.9) * (1 - 0.35 * THREE.MathUtils.smoothstep(edgeDist, 0.93, 1));
+      // clamp: at the extreme wall edge float error makes this slightly negative → NaN from `** 1.4`
+      const bowl = Math.max(0, (1 - ux * ux) * (1 - uz * uz));
+      p.y += t * (shape.rim * rimK - shape.hollow * bowl ** 1.4);
+      p.y += t * shape.wave * Math.sin(ux * 5.2 + uz * 3.1) * rimK;
+      p.y += t * h * 0.012 * Math.sin(ux * 9 + uz * 6) * (1 - rimK);
+      // stacked fold layers: ridges around the side walls (where the surface faces sideways)
+      const side = THREE.MathUtils.clamp(1 - Math.abs(n.y) * 1.6, 0, 1);
+      const ridge = shape.ridge * side * (0.5 + 0.5 * Math.cos(t * shape.layers * Math.PI * 2));
+      p.x += n.x * ridge;
+      p.z += n.z * ridge;
+    } else {
+      // pillow + faint cloth wrinkles on the upper layers
+      p.y += bulge * t * (1 - ux * ux) * (1 - uz * uz);
+      p.y += t * h * (0.025 * Math.sin(ux * 7.3 + uz * 2.1) * Math.sin(uz * 5.7 - ux * 1.3) + 0.012 * Math.sin(ux * 19 + uz * 11));
+    }
     // the fold sags a touch, like heavy silk
     if (front) p.y -= 0.04 * h * Math.max(0, uz) ** 2;
     pos.setXYZ(i, p.x, p.y, p.z);
