@@ -55,11 +55,11 @@ const LAYOUT = {
     { id: 'black', x: -0.2, z: 0.68, ry: 0.18 },
     { id: 'yellow', x: 0.38, z: 0.42, ry: -0.12 }
   ] as const,
-  // rose petals scattered through the gaps; the first 6 are used on small screens
+  // rose petals fitted to the owner's screenshot (they fall from above onto these spots); the first 6 are used on small screens
   petal: [
-    { x: -0.56, z: -0.58, k: 1.2 }, { x: 0.74, z: 0.12, k: 1.35 }, { x: -0.1, z: 0.42, k: 1.1 }, { x: 0.24, z: 0.34, k: 0.95 },
-    { x: -0.7, z: 0.2, k: 1.25 }, { x: 0.62, z: 0.8, k: 1.05 }, { x: 0.32, z: -0.62, k: 0.9 }, { x: -0.2, z: 0.86, k: 1.3 },
-    { x: 0.02, z: 0.62, k: 1.0 }, { x: -0.52, z: 0.3, k: 0.85 }
+    { x: -0.66, z: -0.3, k: 1.2 }, { x: 0.76, z: 0.21, k: 1.35 }, { x: -0.54, z: 0.4, k: 1.1 }, { x: -0.02, z: 0.58, k: 0.95 },
+    { x: 0.3, z: -0.42, k: 1.25 }, { x: -0.47, z: 0.88, k: 1.05 }, { x: -0.76, z: 0.31, k: 0.9 }, { x: -0.14, z: 0.3, k: 1.3 },
+    { x: 0.09, z: 0.61, k: 1.0 }, { x: 0.81, z: 0.85, k: 0.85 }
   ]
 };
 
