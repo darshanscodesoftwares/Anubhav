@@ -252,6 +252,7 @@ Owner request: append an entry here after every change session.
 - **2026‑11‑05** — Owner: a saree placed on a slight ledge of another floated there. Bundles are yaw-locked, so they can't tip; the support check in `Bundle` now also measures how far my centre is past the lower bundle's footprint edge (0.9 × half-extent, in its frame) and, when it is, pushes the bundle off the ledge (30 m/s² ramped over 0.3·s of overhang, beats friction 1.25·14) until it clears and drops. Verified by teleport test: centre 1.3 past → slid off and landed on the floor (y 0.18); centred on top → stayed (y 0.80). Tune: `0.9`, `30`.
 - **2026‑11‑05** — Ledge slide-off was too eager (it pushed bundles that were still mostly supported). Now it only triggers when my centre is past the lower bundle's footprint edge (threshold 0.9→1.05 × half-extent) and ramps over 0.1·s at 24 m/s² (just above friction, so a real overhang slides off, a mostly-supported bundle never moves). Teleport test: centre ≥ ~1.2 past → slides to the floor; centre ≤ 1.0 → stays put. Tune: `1.05`, `0.1`, `24` in `DrapeScene.tsx`.
 - **2026‑11‑05** — Ledge slide-off toned down further (owner: "even more"): threshold 1.05→1.28 × half-extent (only a sliver of support left), ramp 0.1→0.2·s, push 24→20 m/s² (barely above friction, so it creeps off instead of darting). Tune in `DrapeScene.tsx`.
+- **2026‑11‑05** — Ledge slide-off threshold raised again (owner: "slips too easily"): 1.28→1.55 × half-extent, so a saree only slips when its centre is far past the edge (almost nothing under it).
 
 ## Next / ideas
 
