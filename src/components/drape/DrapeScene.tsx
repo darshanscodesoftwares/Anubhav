@@ -83,8 +83,29 @@ function makeShadowTex(size: number, frac: number, blur: number) {
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
+/** Petal-shaped sprite: a rounded teardrop (broad shoulders, pointed tip at +z) so a petal's shadow matches its outline. */
+function makePetalShadowTex(size: number, frac: number, blur: number) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const g = c.getContext('2d')!;
+  const a = size * frac, x0 = (size - a) / 2, y0 = x0;      // shape box; +z (tip) is toward the bottom of the canvas
+  const X = (u: number) => x0 + u * a, Y = (v: number) => y0 + v * a;
+  g.filter = `blur(${blur}px)`;
+  g.fillStyle = 'rgb(46,20,13)';
+  g.beginPath();
+  g.moveTo(X(0.5), Y(0.02));                                   // narrow base
+  g.bezierCurveTo(X(0.92), Y(0.1), X(1.04), Y(0.62), X(0.62), Y(0.94));
+  g.quadraticCurveTo(X(0.52), Y(1.02), X(0.46), Y(0.95));      // slightly pointed tip
+  g.bezierCurveTo(X(-0.04), Y(0.66), X(0.0), Y(0.12), X(0.5), Y(0.02));
+  g.fill();
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
 const CORE = { frac: 0.6, tex: makeShadowTex(256, 0.6, 7) };   // contact shadow: dense, tight
 const SOFT = { frac: 0.4, tex: makeShadowTex(512, 0.4, 46) };  // penumbra: wide, soft
+const PCORE = { frac: 0.6, tex: makePetalShadowTex(256, 0.6, 5) };
+const PSOFT = { frac: 0.4, tex: makePetalShadowTex(512, 0.4, 34) };
 const shadowGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
 /** Floor direction shadows fall in (x, z): away from the top-right key light. */
 const SHADOW_DIR = new THREE.Vector2(-0.78, 0.62).normalize();
@@ -95,11 +116,12 @@ const SHADOW_DIR = new THREE.Vector2(-0.78, 0.62).normalize();
  *  - penumbra layer: grows larger, softer and fainter with height
  * Both slide down-left (away from the key light) as the object rises.
  */
-function ShadowBlob({ body, w, d, strength = 1, y = -0.14 }: { body: React.RefObject<RapierRigidBody | null>; w: number; d: number; strength?: number; y?: number }) {
+function ShadowBlob({ body, w, d, strength = 1, y = -0.14, petal = false }: { body: React.RefObject<RapierRigidBody | null>; w: number; d: number; strength?: number; y?: number; petal?: boolean }) {
+  const CORE_ = petal ? PCORE : CORE, SOFT_ = petal ? PSOFT : SOFT;
   const core = useRef<THREE.Mesh>(null);
   const soft = useRef<THREE.Mesh>(null);
-  const coreMat = useMemo(() => new THREE.MeshBasicMaterial({ map: CORE.tex, transparent: true, depthWrite: false, toneMapped: false }), []);
-  const softMat = useMemo(() => new THREE.MeshBasicMaterial({ map: SOFT.tex, transparent: true, depthWrite: false, toneMapped: false }), []);
+  const coreMat = useMemo(() => new THREE.MeshBasicMaterial({ map: CORE_.tex, transparent: true, depthWrite: false, toneMapped: false }), []);
+  const softMat = useMemo(() => new THREE.MeshBasicMaterial({ map: SOFT_.tex, transparent: true, depthWrite: false, toneMapped: false }), []);
   const e = useMemo(() => new THREE.Euler(), []);
   const q = useMemo(() => new THREE.Quaternion(), []);
   useFrame(() => {
@@ -117,14 +139,14 @@ function ShadowBlob({ body, w, d, strength = 1, y = -0.14 }: { body: React.RefOb
     const cOff = size * 0.05;
     core.current.position.set(p.x + SHADOW_DIR.x * cOff, y + 0.004, p.z + SHADOW_DIR.y * cOff);
     core.current.rotation.y = e.y;
-    core.current.scale.set((w * 1.04) / CORE.frac, 1, (d * 1.06) / CORE.frac);
+    core.current.scale.set((w * 1.04) / CORE_.frac, 1, (d * 1.06) / CORE_.frac);
     coreMat.opacity = 0.62 * touch * strength;
 
     const sOff = size * 0.12 + gap * 0.42;
     soft.current.position.set(p.x + SHADOW_DIR.x * sOff, y + 0.003, p.z + SHADOW_DIR.y * sOff);
     soft.current.rotation.y = e.y;
     const spread = 1.12 + lift * 0.7;
-    soft.current.scale.set((w * spread) / SOFT.frac, 1, (d * spread) / SOFT.frac);
+    soft.current.scale.set((w * spread) / SOFT_.frac, 1, (d * spread) / SOFT_.frac);
     softMat.opacity = 0.42 * (1 - lift * 0.65) * strength;
   });
   return (
@@ -694,7 +716,7 @@ function Petal({ i, at }: { i: number; at: { x: number; z: number; k: number } }
   return (
     <>
       {/* y: sprites sit below the cupped petal so the shadow never cuts through its body */}
-      <ShadowBlob body={rb} w={0.42 * s} d={0.42 * s} strength={0.45} y={-0.14} />
+      <ShadowBlob body={rb} w={0.5 * s} d={0.68 * s} strength={0.45} y={-0.14} petal />
       <RigidBody ref={rb} colliders={false} position={init.p} quaternion={init.q} gravityScale={PETAL_GRAVITY} linearDamping={3.2} angularDamping={1.1} ccd>
         <CuboidCollider args={[0.22 * s * 1.25, 0.07 * s, 0.3 * s * 1.25]} density={0.15} friction={0.6} restitution={0} />
         <mesh
