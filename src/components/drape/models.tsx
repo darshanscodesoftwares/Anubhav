@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import * as THREE from 'three';
 
 const LEN = 0.62;   // base → tip
-const WID = 0.46;   // widest point
+const WID = 0.51;   // patch width (the photo's alpha cuts the real outline; 524×640 → 0.82 of LEN)
 const CUP = 0.11;   // how deep the petal is cupped
 
 /**
@@ -17,7 +17,7 @@ export function usePetalGeometry() {
     for (let i = 0; i <= NU; i++) {
       const u = i / NU;
       // broad shoulders, narrow base, tapering to a point
-      const w = WID * 0.5 * Math.pow(Math.sin(Math.PI * Math.pow(u, 0.72)), 0.85) * (1 - 0.18 * u);
+      const w = WID * 0.5; // full-width patch; the photo's transparency shapes the petal
       const curl = 0.55 * (u - 0.42) ** 2 - 0.05;
       for (let j = 0; j <= NV; j++) {
         const v = (j / NV) * 2 - 1;
@@ -47,51 +47,14 @@ export function usePetalGeometry() {
   }, []);
 }
 
-/** Paints the petal: deep pink rim, base and tip fading to a pale, translucent-looking centre, with fine veins. */
-function makePetalTexture() {
-  const W = 128, H = 256;
-  const c = document.createElement('canvas');
-  c.width = W;
-  c.height = H;
-  const g = c.getContext('2d')!;
-  const img = g.createImageData(W, H);
-  const deep = [214, 66, 112], mid = [240, 130, 160], pale = [253, 228, 233];
-  const mix = (a: number[], b: number[], t: number) => a.map((x, k) => x + (b[k] - x) * t);
-  const ss = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-  for (let y = 0; y < H; y++) {
-    const u = y / (H - 1);
-    for (let x = 0; x < W; x++) {
-      const v = (x / (W - 1)) * 2 - 1;
-      const e = Math.abs(v);
-      // veins run along the length and fan out from the base
-      const vein = 0.5 + 0.5 * Math.sin((v * (6 + 10 * u)) * 3.1 + Math.sin(u * 5 + v * 2) * 0.6);
-      const streak = ss(0.35, 1, vein) * 0.09 * (1 - e * 0.6);
-      // pale in the middle of the body; deeper toward the rim, the base and (strongly) the tip
-      let f = 0.1 + 0.85 * ss(0.3, 1, e) + 0.55 * ss(0.78, 1, u) + 0.4 * (1 - ss(0, 0.2, u)) - 0.18 * (1 - e) * ss(0.2, 0.7, u) * (1 - ss(0.7, 1, u));
-      f = Math.min(1, Math.max(0, f)) + streak;
-      const col = f < 0.55 ? mix(pale, mid, f / 0.55) : mix(mid, deep, (f - 0.55) / 0.45);
-      // a little greenish-yellow where the petal joins the flower (like a real rose petal's base)
-      const yg = (1 - ss(0.04, 0.34, u)) * (1 - ss(0.05, 0.62, e));
-      const c2 = yg > 0 ? mix(col, [228, 222, 104], Math.min(1, yg * 1.1)) : col;
-      col[0] = c2[0]; col[1] = c2[1]; col[2] = c2[2];
-      const k = (y * W + x) * 4;
-      img.data[k] = col[0];
-      img.data[k + 1] = col[1];
-      img.data[k + 2] = col[2];
-      img.data[k + 3] = 255;
-    }
-  }
-  g.putImageData(img, 0, 0);
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  t.anisotropy = 4;
-  return t;
-}
-
-const petalMap = makePetalTexture();
+/** The owner's petal photo (rotated so the yellow base is at u = 0, transparent outside the petal). */
+const petalMap = new THREE.TextureLoader().load('/drape/petal-dewy.webp');
+petalMap.colorSpace = THREE.SRGBColorSpace;
+petalMap.anisotropy = 4;
 
 export const petalMaterial = new THREE.MeshPhysicalMaterial({
   map: petalMap,
+  alphaTest: 0.5,
   roughness: 0.55,
   sheen: 0.8,
   sheenRoughness: 0.5,
@@ -103,6 +66,6 @@ export const petalMaterial = new THREE.MeshPhysicalMaterial({
   // light. A faint self-glow from the colour map reproduces that and stops shaded faces going grey.
   emissive: new THREE.Color('#ffffff'),
   emissiveMap: petalMap,
-  emissiveIntensity: 0.42,
+  emissiveIntensity: 0.16,
   side: THREE.DoubleSide
 });
