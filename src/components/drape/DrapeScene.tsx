@@ -102,10 +102,10 @@ function makePetalShadowTex(size: number, frac: number, blur: number) {
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const CORE = { frac: 0.6, tex: makeShadowTex(256, 0.6, 4) };   // contact shadow: dense, tight
-const SOFT = { frac: 0.4, tex: makeShadowTex(512, 0.4, 34) };  // penumbra: wide, soft
-const PCORE = { frac: 0.6, tex: makePetalShadowTex(256, 0.6, 4) };
-const PSOFT = { frac: 0.4, tex: makePetalShadowTex(512, 0.4, 28) };
+const CORE = { frac: 0.6, tex: makeShadowTex(256, 0.6, 11) };   // contact shadow: dense, tight
+const SOFT = { frac: 0.4, tex: makeShadowTex(512, 0.4, 50) };  // penumbra: wide, soft
+const PCORE = { frac: 0.6, tex: makePetalShadowTex(256, 0.6, 9) };
+const PSOFT = { frac: 0.4, tex: makePetalShadowTex(512, 0.4, 42) };
 const shadowGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
 /** Floor direction shadows fall in (x, z): away from the top-right key light. */
 const SHADOW_DIR = new THREE.Vector2(-0.9, 0.42).normalize();
@@ -142,19 +142,19 @@ function ShadowBlob({ body, w, d, strength = 1, y = -0.03, petal = false }: { bo
     core.current.position.set(p.x + SHADOW_DIR.x * cOff, y + 0.004, p.z + SHADOW_DIR.y * cOff);
     core.current.rotation.y = e.y;
     core.current.scale.set((w * 1.12) / CORE_.frac, 1, (d * 1.1) / CORE_.frac);
-    coreMat.opacity = 0.7 * touch * strength;
+    coreMat.opacity = 0.5 * touch * strength;
     // contact seam: a tight, dark, un-offset footprint right under the body — the thin line where it meets the floor
     seam.current.position.set(p.x, y + 0.005, p.z);
     seam.current.rotation.y = e.y;
     seam.current.scale.set((w * 0.98) / CORE_.frac, 1, (d * 0.98) / CORE_.frac);
-    seamMat.opacity = 0.6 * touch * touch * strength;
+    seamMat.opacity = 0.4 * touch * touch * strength;
 
-    const sOff = size * 0.3 + gap * 0.5;
+    const sOff = size * 0.36 + gap * 0.5;
     soft.current.position.set(p.x + SHADOW_DIR.x * sOff, y + 0.003, p.z + SHADOW_DIR.y * sOff);
     soft.current.rotation.y = e.y;
-    const spread = 1.22 + lift * 0.7;
+    const spread = 1.3 + lift * 0.7;
     soft.current.scale.set((w * spread) / SOFT_.frac, 1, (d * spread) / SOFT_.frac);
-    softMat.opacity = 0.42 * (1 - lift * 0.65) * strength;
+    softMat.opacity = 0.4 * (1 - lift * 0.65) * strength;
   });
   return (
     <>
