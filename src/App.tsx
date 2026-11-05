@@ -19,6 +19,7 @@ export default function App() {
 
   const onReady = useCallback(() => {
     document.fonts.ready.then(() => {
+      window.scrollTo(0, 0);
       setReady(true);
       initSmoothScroll()?.start();
       requestAnimationFrame(() => ScrollTrigger.refresh());

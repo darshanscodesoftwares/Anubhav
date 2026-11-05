@@ -1,6 +1,13 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <script>
+      // Always start at the very top of the hero: no browser scroll restoration, no #hash jump, also from the back/forward cache.
+      if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+      if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+      window.addEventListener('pageshow', function (e) { if (e.persisted) location.reload(); });
+      window.addEventListener('beforeunload', function () { window.scrollTo(0, 0); });
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#f3e4dc" />
