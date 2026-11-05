@@ -253,6 +253,7 @@ Owner request: append an entry here after every change session.
 - **2026‑11‑05** — Ledge slide-off was too eager (it pushed bundles that were still mostly supported). Now it only triggers when my centre is past the lower bundle's footprint edge (threshold 0.9→1.05 × half-extent) and ramps over 0.1·s at 24 m/s² (just above friction, so a real overhang slides off, a mostly-supported bundle never moves). Teleport test: centre ≥ ~1.2 past → slides to the floor; centre ≤ 1.0 → stays put. Tune: `1.05`, `0.1`, `24` in `DrapeScene.tsx`.
 - **2026‑11‑05** — Ledge slide-off toned down further (owner: "even more"): threshold 1.05→1.28 × half-extent (only a sliver of support left), ramp 0.1→0.2·s, push 24→20 m/s² (barely above friction, so it creeps off instead of darting). Tune in `DrapeScene.tsx`.
 - **2026‑11‑05** — Ledge slide-off threshold raised again (owner: "slips too easily"): 1.28→1.55 × half-extent, so a saree only slips when its centre is far past the edge (almost nothing under it).
+- **2026‑11‑05** — Owner: all sarees use the yellow's flat/hollow/layered shape, slightly varied. Every `SAREES` entry in `data.ts` now has a `shape` (thickness h / hollow / rim / ridge / layers / wave): maroon 0.40·0.10·0.10·6.5 layers, ivory 0.34·0.14·0.13·5 (thinnest, deepest dip), navy 0.42·0.09·0.10·7 (thickest, plushest), black 0.38·0.11·0.11·6, yellow unchanged. Thickness feeds geometry, half-extents and colliders automatically. Headless render: no errors.
 
 ## Next / ideas
 
