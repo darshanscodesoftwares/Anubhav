@@ -11,6 +11,8 @@ const LINKS = [
 export function Nav() {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<'hero' | 'hidden' | 'solid'>('hero');
+  // the pinned hero is about to scroll away: fade the logo out quickly so it never sits on top of the next section
+  const [leaving, setLeaving] = useState(false);
 
   useEffect(() => {
     let lastY = window.scrollY;
@@ -19,6 +21,7 @@ export function Nav() {
       // pinned hero's spacer height = its full scroll length
       const heroEnd = (hero?.parentElement?.offsetHeight ?? window.innerHeight) - window.innerHeight * 0.5;
       const y = window.scrollY;
+      setLeaving(y > heroEnd - window.innerHeight * 0.5 + 30);
       if (y < heroEnd) setMode('hero');
       else setMode(y > lastY ? 'hidden' : 'solid');
       lastY = y;
@@ -58,7 +61,7 @@ export function Nav() {
           mode === 'hidden' && !open ? '-translate-y-full' : 'translate-y-0'
         } ${mode === 'solid' && !open ? 'bg-blush/85 backdrop-blur-md' : ''} ${mode === 'hero' && !open ? 'max-md:bg-[linear-gradient(to_bottom,rgba(243,228,220,0.92)_35%,transparent)] max-md:pb-10' : ''}`}
       >
-        <a href="#top" onClick={go('#top')} className="pointer-events-auto" style={mode === 'solid' && !open ? { zoom: 0.68 } : undefined} aria-label="Anubhav home">
+        <a href="#top" onClick={go('#top')} className={`pointer-events-auto transition-opacity ease-out ${mode === 'hero' && leaving && !open ? 'pointer-events-none opacity-0 duration-200' : 'opacity-100 duration-500'}`} style={mode === 'solid' && !open ? { zoom: 0.68 } : undefined} aria-label="Anubhav home">
           <Logo />
         </a>
 
