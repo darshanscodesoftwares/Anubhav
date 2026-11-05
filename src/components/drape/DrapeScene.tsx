@@ -39,6 +39,8 @@ interface Ctx {
   bounds: Bounds;
   petals: React.RefObject<Map<string, RapierRigidBody>>;
   bundles: React.RefObject<Map<string, RapierRigidBody>>;
+  /** cursor on the floating-height plane (world x,z) and its velocity; `on` is false when the pointer isn't over the scene */
+  cursor: React.RefObject<{ x: number; z: number; vx: number; vz: number; on: boolean }>;
   /** puff of air from (x, z): nearby petals blow outward and up like feathers */
   gust: (x: number, z: number, radius: number, power: number) => void;
 }
@@ -425,6 +427,24 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
         y: m * (GRAVITY + ky * (ty - p.y) - cy * v.y) * dt,
         z: m * (kh * (hoverAt.current.z - p.z) - ch * v.z) * dt
       }, true);
+      // Cursor push field: a floating saree is nudged away from the pointer (and a touch along its movement).
+      // Soft quadratic falloff, small accelerations — a gentle shove the levitation spring then eases back.
+      const cur = ctx.cursor.current;
+      if (cur.on && !ctx.dragging.current) {
+        const dx = p.x - cur.x, dz = p.z - cur.z;
+        const dist = Math.hypot(dx, dz);
+        const R = 1.9 * s;
+        if (dist < R) {
+          const f = (1 - dist / R) ** 2;
+          const nx = dist > 1e-3 ? dx / dist : 0, nz = dist > 1e-3 ? dz / dist : 0;
+          const accel = 3.2 * f;
+          body.applyImpulse({
+            x: m * (nx * accel + THREE.MathUtils.clamp(cur.vx, -8, 8) * 0.22 * f) * dt,
+            y: 0,
+            z: m * (nz * accel + THREE.MathUtils.clamp(cur.vz, -8, 8) * 0.22 * f) * dt
+          }, true);
+        }
+      }
       const r = body.rotation();
       const yaw = tmp.e.setFromQuaternion(tmp.q.set(r.x, r.y, r.z, r.w), 'YXZ').y;
       body.setAngvel({ x: 0, y: (at.ry + 0.22 * Math.sin(t * 0.45 + index) - yaw) * 2, z: 0 }, true);
@@ -695,6 +715,33 @@ function World({ bounds, filter }: DrapeSceneProps & { bounds: Bounds }) {
 
   const petals = useRef(new Map<string, RapierRigidBody>());
   const bundles = useRef(new Map<string, RapierRigidBody>());
+
+  // Cursor push field: track where the pointer is on the plane the floating sarees hover in.
+  const cursor = useRef({ x: 0, z: 0, vx: 0, vz: 0, on: false });
+  const { gl: glr, camera: cam, pointer } = useThree();
+  const ray = useMemo(() => new THREE.Raycaster(), []);
+  const hoverPlane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.8 * bounds.s), [bounds.s]);
+  const hit = useMemo(() => new THREE.Vector3(), []);
+  useEffect(() => {
+    const el = glr.domElement;
+    const enter = () => { cursor.current.on = true; };
+    const leave = () => { cursor.current.on = false; };
+    el.addEventListener('pointerenter', enter);
+    el.addEventListener('pointerleave', leave);
+    return () => { el.removeEventListener('pointerenter', enter); el.removeEventListener('pointerleave', leave); };
+  }, [glr]);
+  useFrame((_, dt) => {
+    const c = cursor.current;
+    if (!c.on) { c.vx = c.vz = 0; return; }
+    ray.setFromCamera(pointer, cam);
+    if (!ray.ray.intersectPlane(hoverPlane, hit)) return;
+    const d = Math.max(dt, 1e-3);
+    // smoothed velocity so a single jumpy frame doesn't fling anything
+    c.vx += ((hit.x - c.x) / d - c.vx) * 0.25;
+    c.vz += ((hit.z - c.z) / d - c.vz) * 0.25;
+    c.x = hit.x;
+    c.z = hit.z;
+  });
   const gust = useCallback((x: number, z: number, radius: number, power: number) => {
     petals.current.forEach(b => {
       const p = b.translation();
@@ -714,6 +761,7 @@ function World({ bounds, filter }: DrapeSceneProps & { bounds: Bounds }) {
     () => ({
       petals,
       bundles,
+      cursor,
       gust,
       startDrag,
       dragging,

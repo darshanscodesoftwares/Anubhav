@@ -239,6 +239,12 @@ Owner request: append an entry here after every change session.
   levitation spring — floaters still use their start position) and an `onDoubleClick` on the mesh that sets `hoverAt` to the
   current spot and `hovering = true`; any single click/drag drops it again via the existing `release()`. Verified: dbl-click on
   the resting yellow saree → hovers with a detached shadow; single click → lands with a contact shadow.
+- **2026‑11‑05** — Cursor push field for floating sarees (owner: "gentle push, small field, not too strong"). `World` projects the
+  pointer onto the hover plane (y = 0.8·s) each frame into `ctx.cursor` {x,z,vx,vz,on} (smoothed velocity; `on` from the
+  canvas' pointerenter/leave). In a hovering bundle's levitation block: if the cursor is within `R = 1.9·s` (xz) and nothing is
+  being dragged, add an impulse away from the cursor `3.2·(1−d/R)²` m/s² plus 22 % of the cursor's velocity × the same falloff;
+  the levitation spring eases it back. Verified: cursor held beside the floating maroon saree → ~27 px drift away, returns
+  after the cursor leaves. Tune: `3.2`, `0.22` and `R` in `DrapeScene.tsx`.
   Bug found: `bowl ** 1.4` went NaN at the extreme wall edge (float error → tiny negative base) and drew black slivers
   down both side walls — clamp with `Math.max(0, …)` (found by bisecting: no shape → no slivers).
 
