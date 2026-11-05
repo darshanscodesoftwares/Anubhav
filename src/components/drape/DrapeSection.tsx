@@ -63,7 +63,9 @@ export function DrapeSection() {
 
   useEffect(() => {
     const el = root.current!;
-    const near = new IntersectionObserver(([e]) => e.isIntersecting && setMounted(true), { rootMargin: '900px 0px' });
+    // Mount the 3D scene only once the browser is idle, so its download and setup never compete with the hero.
+    const idle = (cb: () => void) => ('requestIdleCallback' in window ? window.requestIdleCallback(cb, { timeout: 2500 }) : globalThis.setTimeout(cb, 300));
+    const near = new IntersectionObserver(([e]) => e.isIntersecting && idle(() => setMounted(true)), { rootMargin: '900px 0px' });
     const vis = new IntersectionObserver(([e]) => setActive(e.isIntersecting), { threshold: 0.15 });
     near.observe(el);
     vis.observe(el);

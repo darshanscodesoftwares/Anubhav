@@ -10,7 +10,7 @@ import {
   type RapierRigidBody
 } from '@react-three/rapier';
 import { SAREES, type Saree, type Tag } from './data';
-import { applyFabricDeform, makeBundleGeometry, makeFabricUniforms, makeFabricMaps, springStep } from './fabric';
+import { applyFabricDeform, makeBundleGeometry, makeFabricUniforms, springStep } from './fabric';
 import { petalMaterial, usePetalGeometry } from './models';
 
 
@@ -266,6 +266,17 @@ const FLOATING: Saree['id'][] = ['ivory', 'maroon', 'navy'];
 /** half of the pillow/wrinkle height above the base box (see makeBundleGeometry) */
 const BULGE_PAD = 0.06;
 
+const bundleGeometries = new Map<string, THREE.BufferGeometry>();
+function bundleGeometry(bh: number, shape: Saree['shape']) {
+  const key = `${bh}|${JSON.stringify(shape ?? null)}`;
+  let g = bundleGeometries.get(key);
+  if (!g) {
+    g = makeBundleGeometry(BUNDLE.w, bh, BUNDLE.d, BUNDLE.r, BUNDLE.bulge, shape);
+    bundleGeometries.set(key, g);
+  }
+  return g;
+}
+
 const BUNDLE = { w: 2.2, h: 0.5, d: 1.5, r: 0.17, bulge: 0.09 };
 
 function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; at: { x: number; z: number; ry: number }; index: number; dim: boolean; hop: number; float?: boolean }) {
@@ -274,35 +285,45 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
   const s = ctx.bounds.s;
   const bh = saree.shape?.h ?? BUNDLE.h; // thickness (flat sarees are lower)
   const half = useMemo(() => new THREE.Vector3(BUNDLE.w / 2, bh / 2, BUNDLE.d / 2), [bh]);
-  const geometry = useMemo(() => makeBundleGeometry(BUNDLE.w, bh, BUNDLE.d, BUNDLE.r, BUNDLE.bulge, saree.shape), [bh, saree.shape]);
+  const geometry = useMemo(() => bundleGeometry(bh, saree.shape), [bh, saree.shape]);
   const U = useMemo(() => makeFabricUniforms(half), [half]);
-  const [top, edge] = useTexture([`/drape/top-${saree.id}.webp`, `/drape/edge-${saree.id}.webp`]);
-
-  // Silk ground tinted to true jewel tones; gold zari detected → metallic + smoother (G = roughness, B = metalness).
+  // colour (tinted ground) and roughness/metalness (zari) are pre-baked by scripts/bake-drape-maps.mjs
+  const [topCol, topRm, edgeCol, edgeRm] = useTexture([
+    `/drape/top-${saree.id}-col.webp`,
+    `/drape/top-${saree.id}-rm.webp`,
+    `/drape/edge-${saree.id}-col.webp`,
+    `/drape/edge-${saree.id}-rm.webp`
+  ]);
   const maps = useMemo(() => {
-    const build = (t: THREE.Texture) => {
-      const m = makeFabricMaps(t.image as HTMLImageElement, saree.tint, saree.roughness, saree.zari);
-      const colour = new THREE.CanvasTexture(m.colour);
-      const rm = new THREE.CanvasTexture(m.rm);
-      rm.colorSpace = THREE.NoColorSpace;
-      return { colour, rm };
-    };
-    return { top: build(top), edge: build(edge) };
-  }, [top, edge, saree]);
+    topRm.colorSpace = THREE.NoColorSpace;
+    edgeRm.colorSpace = THREE.NoColorSpace;
+    return { top: { colour: topCol, rm: topRm }, edge: { colour: edgeCol, rm: edgeRm } };
+  }, [topCol, topRm, edgeCol, edgeRm]);
 
+  // Faces that share a UV transform share one texture + one material, so each saree uploads only a few textures to the GPU.
   const materials = useMemo(() => {
-    const prep = (t: THREE.Texture, srgb: boolean, repeatX = 1, offsetX = 0, repeatY = 1, offsetY = 0) => {
-      const c = t.clone();
-      if (srgb) c.colorSpace = THREE.SRGBColorSpace;
-      c.anisotropy = 8;
-      c.wrapS = c.wrapT = THREE.RepeatWrapping;
-      c.repeat.set(repeatX, repeatY);
-      c.offset.set(offsetX, offsetY);
-      c.needsUpdate = true;
+    const texCache = new Map<string, THREE.Texture>();
+    const prep = (src: THREE.Texture, srgb: boolean, rx: number, ox: number, ry: number, oy: number) => {
+      const key = `${src.uuid}|${rx}|${ox}|${ry}|${oy}`;
+      let c = texCache.get(key);
+      if (!c) {
+        c = src.clone();
+        if (srgb) c.colorSpace = THREE.SRGBColorSpace;
+        c.anisotropy = 8;
+        c.wrapS = c.wrapT = THREE.RepeatWrapping;
+        c.repeat.set(rx, ry);
+        c.offset.set(ox, oy);
+        c.needsUpdate = true;
+        texCache.set(key, c);
+      }
       return c;
     };
+    const matCache = new Map<string, THREE.MeshPhysicalMaterial>();
     // each face: colour map + matching zari map with the same UV transform
     const face = (src: 'top' | 'edge', rx = 1, ox = 0, ry = 1, oy = 0) => {
+      const key = `${src}|${rx}|${ox}|${ry}|${oy}`;
+      const cached = matCache.get(key);
+      if (cached) return cached;
       const { colour, rm } = maps[src];
       const zm = prep(rm, false, rx, ox, ry, oy);
       const weave = saree.weave;
@@ -323,17 +344,19 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
         transparent: true
       });
       applyFabricDeform(m, U);
+      matCache.set(key, m);
       return m;
     };
     // BoxGeometry groups: +x, −x, +y, −y, +z(front fold), −z(back).
     // The top's zari border (bottom 20% of the texture) continues mirrored down over the front fold.
+    // Bottom and back faces are hidden from the camera, so they reuse the plain edge texture.
     return [
       face('edge', -1, 1),
       face('edge'),
       face('top'),
-      face('edge', 0.5),
+      face('edge'),
       face('top', 1, 0, -0.2, 0.2),
-      face('edge', 0.6)
+      face('edge')
     ];
   }, [maps, saree, U]);
 
@@ -643,6 +666,14 @@ function World({ bounds, filter }: DrapeSceneProps & { bounds: Bounds }) {
     [bounds, startDrag, dragging, gust]
   );
 
+  // Bring the sarees in one per frame: each one's texture upload is then its own short frame, not a single long stall.
+  const [mounted, setMounted] = useState(0);
+  useEffect(() => {
+    if (mounted >= LAYOUT.saree.length) return;
+    const id = requestAnimationFrame(() => setMounted(m => m + 1));
+    return () => cancelAnimationFrame(id);
+  }, [mounted]);
+
   const [hop, setHop] = useState(0);
   useEffect(() => { if (filter) setHop(h => h + 1); }, [filter]);
 
@@ -651,6 +682,7 @@ function World({ bounds, filter }: DrapeSceneProps & { bounds: Bounds }) {
   return (
     <SceneCtx.Provider value={ctx}>
       {LAYOUT.saree.map((l, i) => {
+        if (i >= mounted) return null;
         const saree = SAREES.find(x => x.id === l.id)!;
         return <Bundle key={l.id} saree={saree} at={l} index={i} dim={!!filter && !saree.tags.includes(filter)} hop={hop} float={FLOATING.includes(l.id)} />;
       })}

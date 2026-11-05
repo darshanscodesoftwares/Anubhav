@@ -15,6 +15,7 @@ npm run build    # type-check + production build → dist/
 - **GSAP 3.15** — ScrollTrigger (pin + scrub), SplitText (masked line/char reveals), `@gsap/react` `useGSAP`
 - **Lenis** — smooth scroll, driven by `gsap.ticker` (single rAF shared with ScrollTrigger)
 - **three + @react-three/fiber + drei + @react-three/rapier** — only in the lazy `DrapeScene` chunk (~1.1 MB gz incl. Rapier wasm)
+- **Fabric maps are pre-baked**: run `node scripts/bake-drape-maps.mjs` after changing any saree texture or its tint/roughness/zari in `data.ts`. It writes `public/drape/{top,edge}-<id>-{col,rm}.webp` (needs the dev-only `puppeteer-core`).
 - **Raw WebGL1 shader** (`src/gl/HeroRenderer.ts`) — no three.js; saree-sweep transitions + masked fabric sway
 - Fonts self-hosted via Fontsource: Cormorant Garamond (headings, italic) + DM Sans (body)
 
@@ -207,6 +208,14 @@ Owner request: append an entry here after every change session.
   `makeBundleGeometry` — lower body (h 0.36 vs 0.5), centre dips 0.13, rim rises 0.12 (rolled, rounded at the very edge),
   rippled rim, sine-spaced ridges pushed outward along the side walls (5.5 layers). Per-saree thickness feeds `half`, the
   geometry and the collider (`bh`); other sarees keep the pillow. Rounding radii now clamp to the bundle's thickness.
+- **2026‑11‑05** — Fresh-load lag fixed (owner: section loads slowly and the site stutters ~2 s after a reload). Measured on
+  the production build with the Chrome profiler: one 359 ms stall, all inside three.js `texSubImage2D` (GPU texture
+  uploads), plus the old per-pixel fabric colour pass that ran on the main thread on every load. Fixes: (1) the colour
+  tint and roughness/metal maps are baked offline by `scripts/bake-drape-maps.mjs` instead of computed in the page;
+  (2) faces with the same UV transform share one texture and material, and the hidden bottom/back faces reuse the plain
+  edge texture (≈60 uploads → ≈40); (3) sarees mount one per animation frame, so no single frame stalls; (4) the scene
+  mounts on `requestIdleCallback` once the section is near. Longest main-thread task went 359 ms → ~105 ms.
+  Tried and reverted: pre-decoding textures with `Image.decode()` (no gain, delayed the scene).
   Bug found: `bowl ** 1.4` went NaN at the extreme wall edge (float error → tiny negative base) and drew black slivers
   down both side walls — clamp with `Math.max(0, …)` (found by bisecting: no shape → no slivers).
 
