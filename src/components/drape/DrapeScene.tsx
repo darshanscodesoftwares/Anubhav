@@ -95,7 +95,7 @@ const SHADOW_DIR = new THREE.Vector2(-0.78, 0.62).normalize();
  *  - penumbra layer: grows larger, softer and fainter with height
  * Both slide down-left (away from the key light) as the object rises.
  */
-function ShadowBlob({ body, w, d, strength = 1, y = 0 }: { body: React.RefObject<RapierRigidBody | null>; w: number; d: number; strength?: number; y?: number }) {
+function ShadowBlob({ body, w, d, strength = 1, y = -0.14 }: { body: React.RefObject<RapierRigidBody | null>; w: number; d: number; strength?: number; y?: number }) {
   const core = useRef<THREE.Mesh>(null);
   const soft = useRef<THREE.Mesh>(null);
   const coreMat = useMemo(() => new THREE.MeshBasicMaterial({ map: CORE.tex, transparent: true, depthWrite: false, toneMapped: false }), []);

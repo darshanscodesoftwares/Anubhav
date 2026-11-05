@@ -248,6 +248,7 @@ Owner request: append an entry here after every change session.
   Bug found: `bowl ** 1.4` went NaN at the extreme wall edge (float error → tiny negative base) and drew black slivers
   down both side walls — clamp with `Math.max(0, …)` (found by bisecting: no shape → no slivers).
 - **2026‑11‑05** — Cursor push field made stronger (owner: "make it stronger"): `R` 1.9→2.3·s, base push 3.2→7.5 m/s², cursor-velocity coupling 0.22→0.5 (`DrapeScene.tsx`). Levitation spring still eases sarees back; headless run: no console errors.
+- **2026‑11‑05** — Owner: saree shadows landed inside nearby petals as a grey lens. Same cause as the earlier petal-cup bug: saree floor shadow sprites sat at y≈0.004 and cut through the cupped petal. `ShadowBlob` now defaults to `y = -0.14` for every body (the floor is invisible, so sprites sit below all petals); petals occlude the shadow instead of being cut by it. Trade-off: saree shadows don't darken petals.
 
 ## Next / ideas
 
