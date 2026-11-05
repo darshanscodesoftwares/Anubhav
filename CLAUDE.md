@@ -200,6 +200,8 @@ Owner request: append an entry here after every change session.
 - **2026‑11‑05** — Stack bend fix (owner: "still not bending"): detection required *my centre* over the lower footprint, so a
   bundle hanging mostly off an edge (the case that most needs to bend) was ignored → now any footprint overlap counts
   (|offset| < 1.9·half). Bend is a hinge at the support edge: `pow(clamp(over/1.2),1.25)·1.5·halfY` + 0.08 inward.
+- **2026‑11‑05** — Stack bend stronger ("still a little more"): hinge now `pow(clamp(over/0.95),1.1)·2.3·halfY` + 0.12 inward
+  (was /1.2, 1.25, 1.5, 0.08) — the overhang slopes down visibly past the edge.
 
 ## Next / ideas
 
