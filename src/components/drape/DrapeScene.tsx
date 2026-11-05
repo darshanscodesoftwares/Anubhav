@@ -15,6 +15,8 @@ import { petalMaterial, usePetalGeometry } from './models';
 
 
 export interface DrapeSceneProps {
+  /** the browser dropped the WebGL context (GPU reset, too many contexts…) — the parent remounts the scene */
+  onContextLost?: () => void;
   active: boolean;
   filter: Tag | null;
 }
@@ -629,6 +631,12 @@ export default function DrapeScene(props: DrapeSceneProps) {
       camera={{ fov: 30, near: 0.5, far: 60, position: [0, 8.6, 10.6] }}
       gl={{ antialias: true, alpha: true, powerPreference: 'high-performance', toneMapping: THREE.NeutralToneMapping }}
       style={{ touchAction: 'pan-y' }}
+      onCreated={({ gl }) => {
+        gl.domElement.addEventListener('webglcontextlost', e => {
+          e.preventDefault();
+          props.onContextLost?.();
+        });
+      }}
     >
       <ambientLight intensity={0.4} />
       {/* key from the top-right of the section; soft warm fill from lower-left */}

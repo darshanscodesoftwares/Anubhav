@@ -186,6 +186,11 @@ Owner request: append an entry here after every change session.
   (0.06 each way, shifted up 0.06·s) to match the visible shape. Petals also stood on their edge against sarees →
   per-frame **settle torque** in `Petal` (cross(petalUp, worldUp)·2.6 when y < 0.5·s, 0.07 in open air so they still
   tumble) plus slight spin damping; verified by reading rigid-body state (all resting petals flat=1.00).
+- **2026‑11‑05** — Owner saw the Pick-a-Drape canvas blank (text only) although fresh loads render fine in headless Chrome
+  (no console errors) → most likely a dropped WebGL context after a long dev session / many HMR reloads. Added
+  recovery: `DrapeScene` listens for `webglcontextlost` (preventDefault + `onContextLost`) and `DrapeSection` remounts the
+  scene via a `key`; tested by forcing `WEBGL_lose_context.loseContext()` — scene rebuilds and renders in ~6 s.
+  If it ever happens during dev, a hard refresh (⌘⇧R) also fixes it.
 
 ## Next / ideas
 

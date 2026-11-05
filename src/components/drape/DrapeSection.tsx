@@ -59,6 +59,7 @@ export function DrapeSection() {
   const [active, setActive] = useState(false);
   const [canPlay] = useState(() => hasWebGL() && !prefersReducedMotion());
   const [filter, setFilter] = useState<Tag | null>(null);
+  const [sceneKey, setSceneKey] = useState(0);
 
   useEffect(() => {
     const el = root.current!;
@@ -114,7 +115,7 @@ export function DrapeSection() {
         {canPlay ? (
           mounted && (
             <Suspense fallback={null}>
-              <DrapeScene active={active} filter={filter} />
+              <DrapeScene key={sceneKey} active={active} filter={filter} onContextLost={() => setSceneKey(k => k + 1)} />
             </Suspense>
           )
         ) : (
