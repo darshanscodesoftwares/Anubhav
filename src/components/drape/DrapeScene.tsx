@@ -694,7 +694,7 @@ function Petal({ i, at }: { i: number; at: { x: number; z: number; k: number } }
   const s = ctx.bounds.s * at.k;
   const init = useMemo(
     () => ({
-      p: new THREE.Vector3(ctx.bounds.cx + at.x * ctx.bounds.hx, 2.6 + i * 0.45, ctx.bounds.cz + at.z * ctx.bounds.hz),
+      p: new THREE.Vector3(ctx.bounds.cx + at.x * ctx.bounds.hx, 2.6 + i * 0.7, ctx.bounds.cz + at.z * ctx.bounds.hz),
       q: new THREE.Quaternion().setFromEuler(new THREE.Euler((i % 3) * 0.3, i * 1.7, (i % 2) * 0.4))
     }),
     [ctx.bounds, at, i]
@@ -724,6 +724,22 @@ function Petal({ i, at }: { i: number; at: { x: number; z: number; k: number } }
       { x: (petalTorque.x * 2.6 * near - av.x * 0.06) * m * dt, y: 0, z: (petalTorque.z * 2.6 * near - av.z * 0.06) * m * dt },
       true
     );
+    // petals ease apart instead of piling into each other as they fall or settle
+    {
+      const me = b.translation(), key = `petal-${i}`;
+      let px = 0, pz = 0, py = 0;
+      ctx.petals.current.forEach((ob, k) => {
+        if (k === key) return;
+        const o = ob.translation();
+        const dx = me.x - o.x, dz = me.z - o.z, dy = me.y - o.y;
+        const R = 0.8 * s, d2 = Math.hypot(dx, dz);
+        if (d2 >= R || Math.abs(dy) > 0.45 * s) return;
+        const f = (1 - d2 / R) ** 1.5, n = d2 > 1e-3 ? 1 / d2 : 0;
+        px += (n ? dx * n : Math.cos(i * 2.4)) * f; pz += (n ? dz * n : Math.sin(i * 2.4)) * f;
+        py += Math.sign(dy || 1) * f * 0.35;
+      });
+      if (px || pz) b.applyImpulse({ x: px * 7 * m * dt, y: py * 3 * m * dt, z: pz * 7 * m * dt }, true);
+    }
     if (y < 0.12) return;
     const t = state.clock.elapsedTime + i * 1.3;
     b.applyImpulse({ x: Math.sin(t * 1.7) * 0.9 * m * dt, y: 0, z: Math.cos(t * 1.3) * 0.7 * m * dt }, true);
