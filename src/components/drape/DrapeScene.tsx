@@ -508,6 +508,38 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
     }
     U.uLag.value.copy(S.lag);
     U.uRipple.value = S.ripple;
+    // Petals ride the moving cloth: the shader's ripple is visual only, so mirror its wave here — petals on top are lifted
+    // as it rises, slide down its slopes and get shed off the fluttering edge (the rigid collider alone would let them sink in).
+    if (ctx.dragging.current?.key !== saree.id && ctx.petals.current.size) {
+      const wf = (qx: number, qz: number, tt: number) => Math.sin(qx * 3.2 + qz * 2.1 - tt * 7) * 0.6 + Math.sin(qx * 6.3 - qz * 4.7 + tt * 9.5) * 0.4;
+      const bp = body.translation();
+      const ang = tmp.e.setFromQuaternion(tmp.q.set(r.x, r.y, r.z, r.w), 'YXZ').y;
+      const cs = Math.cos(ang), sn = Math.sin(ang);
+      const tNow = state.clock.elapsedTime;
+      const topY = bp.y + (half.y + BULGE_PAD) * s;
+      ctx.petals.current.forEach(pb => {
+        const pt = pb.translation();
+        const dx = pt.x - bp.x, dz = pt.z - bp.z;
+        const qx = ((dx * cs - dz * sn) / s) / half.x, qz = ((dx * sn + dz * cs) / s) / half.z;
+        const h = pt.y - topY;
+        if (Math.abs(qx) > 1.2 || Math.abs(qz) > 1.2 || h < -0.12 * s || h > 0.3 * s) return;
+        const edge = THREE.MathUtils.smoothstep(Math.max(Math.abs(qx), Math.abs(qz)), 0.55, 1.0);
+        const amp = S.ripple * (0.25 + 0.75 * edge) * half.y * 0.55 * s;
+        const w0 = wf(qx, qz, tNow);
+        const vel = (amp * (w0 - wf(qx, qz, tNow - 0.03))) / 0.03;       // how fast the cloth under it moves up
+        const gx = (wf(qx + 0.05, qz, tNow) - w0) / 0.05 / half.x * amp / s; // surface slope (local)
+        const gz = (wf(qx, qz + 0.05, tNow) - w0) / 0.05 / half.z * amp / s;
+        const ql = Math.hypot(qx, qz) || 1;
+        const ox = -gx * 70 + (qx / ql) * edge * S.ripple * 16;
+        const oz = -gz * 70 + (qz / ql) * edge * S.ripple * 16;
+        const m = pb.mass();
+        pb.applyImpulse({
+          x: m * (ox * cs + oz * sn) * dt,
+          y: m * Math.max(0, vel) * 40 * dt,
+          z: m * (-ox * sn + oz * cs) * dt
+        }, true);
+      });
+    }
     U.uSlump.value = S.slump;
     // picked up → ends droop with a small settle; released → relax flat
     const held = ctx.dragging.current?.key === saree.id;
