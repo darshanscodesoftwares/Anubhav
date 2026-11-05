@@ -41,7 +41,7 @@ Palette: blush `#f3e4dc`, ink `#3a2418`, gold `#b08440`. Copy: kicker (letter-sp
   - `DrapeScene.tsx` — R3F canvas, Rapier physics, camera rig that raycasts screen corners onto the floor to place walls,
     drag-and-throw (velocity-driven toward a lift plane, gravity off while held, throw keeps release velocity), saree bundles, rose petals, two-layer soft shadows.
   - `fabric.ts` — `makeFabricMaps` (per-texture: tints the silk ground only + detects gold zari → roughness/metalness map) · pillowy rounded bundle geometry (keeps BoxGeometry face groups/UVs) + **saree wobble** vertex deform:
-    layer lag (top layers trail acceleration), edge flutter wave with speed, soft slump on landing, held droop (`uHold` + `uGrab`: cloth sags away from the grab point while picked up); JS springs per bundle (Soft vs Firm).
+    layer lag (top layers trail acceleration), edge flutter wave with speed, soft slump on landing, held droop (`uHold` + `uGrab`: cloth sags away from the grab point while picked up), stacked drape (`uSup`/`uSupRot`/`uSag`: a bundle resting on another sags around the lower one's edge); JS springs per bundle (Soft vs Firm).
   - `models.tsx` — lotus/rose petal: parametric cupped surface (pointed tip, lengthwise curl, rippled edge) + painted canvas texture (deep rim/tip → pale centre, faint veins) with a translucent self-glow material.
   - `data.ts` — sarees (name, fabric, note, tags, sheen) + filter chips.
   - Assets: `public/drape/` top-*/edge-* textures and cut-* fallbacks (from owner's `assets/Bundle textures…` + `assets/Transparent cut-outs…`).
@@ -191,6 +191,12 @@ Owner request: append an entry here after every change session.
   recovery: `DrapeScene` listens for `webglcontextlost` (preventDefault + `onContextLost`) and `DrapeSection` remounts the
   scene via a `key`; tested by forcing `WEBGL_lose_context.loseContext()` — scene rebuilds and renders in ~6 s.
   If it ever happens during dev, a hard refresh (⌘⇧R) also fixes it.
+- **2026‑11‑05** — Stacked bundles bend (owner: "bend inwards a little when on top of another bundle"): `ctx.bundles` registry;
+  each frame an un-held, non-floating bundle looks for a bundle directly beneath it (dy 0.3–0.95·s, my centre inside its
+  footprint + 0.25) and passes that footprint (centre/half-extents in my local frame + relative yaw) as `uSup/uSupRot`.
+  Vertex shader: distance outside the support rect → `smoothstep(0.02,1.15)`·`uSag`·0.62·halfY downward + 0.05 inward pull,
+  so only the overhang drapes; `uSag` springs (k46/c9) to 1 when supported, 0 otherwise. Colliders unchanged (visual only).
+  Verified by state: yellow resting on black at y 0.87 → sag 1, support offset (−1.09,−0.69).
 
 ## Next / ideas
 

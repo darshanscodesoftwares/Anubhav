@@ -65,6 +65,11 @@ export interface FabricUniforms {
   uSlump: { value: number };
   uHold: { value: number };
   uGrab: { value: THREE.Vector2 };
+  /** support under this bundle (another bundle): centre x,z + half extents hx,hz in this bundle's local frame */
+  uSup: { value: THREE.Vector4 };
+  /** cos, sin of the support's yaw relative to this bundle */
+  uSupRot: { value: THREE.Vector2 };
+  uSag: { value: number };
   uHalf: { value: THREE.Vector3 };
 }
 
@@ -76,6 +81,9 @@ export function makeFabricUniforms(half: THREE.Vector3): FabricUniforms {
     uSlump: { value: 0 },
     uHold: { value: 0 },
     uGrab: { value: new THREE.Vector2() },
+    uSup: { value: new THREE.Vector4() },
+    uSupRot: { value: new THREE.Vector2(1, 0) },
+    uSag: { value: 0 },
     uHalf: { value: half }
   };
 }
@@ -86,6 +94,7 @@ export function makeFabricUniforms(half: THREE.Vector3): FabricUniforms {
  *  - flutter: free edges ripple with speed, a travelling wave along the fabric
  *  - slump: on landing the bundle sinks and spreads softly, then breathes back (no jelly bounce)
  *  - hold: while picked up, cloth droops away from where it was grabbed, like lifting folded cloth
+ *  - drape: resting on another bundle, the overhanging parts sag around the one beneath
  */
 export function applyFabricDeform(material: THREE.Material, U: FabricUniforms) {
   material.onBeforeCompile = shader => {
@@ -94,7 +103,7 @@ export function applyFabricDeform(material: THREE.Material, U: FabricUniforms) {
       .replace(
         '#include <common>',
         `#include <common>
-        uniform float uTime; uniform vec3 uLag; uniform float uRipple; uniform float uSlump; uniform float uHold; uniform vec2 uGrab; uniform vec3 uHalf;`
+        uniform float uTime; uniform vec3 uLag; uniform float uRipple; uniform float uSlump; uniform float uHold; uniform vec2 uGrab; uniform vec4 uSup; uniform vec2 uSupRot; uniform float uSag; uniform vec3 uHalf;`
       )
       .replace(
         '#include <begin_vertex>',
@@ -112,7 +121,14 @@ export function applyFabricDeform(material: THREE.Material, U: FabricUniforms) {
         vec2 dg = (q.xz - uGrab) / (1.0 + abs(uGrab));
         float droop = dg.x * dg.x;
         transformed.y -= uHold * (droop * uHalf.y * 0.85 + dg.y * dg.y * uHalf.y * 0.14);
-        transformed.x *= 1.0 - uHold * droop * 0.022;`
+        transformed.x *= 1.0 - uHold * droop * 0.022;
+        // resting on another bundle: whatever hangs past the lower bundle's edge sags and pulls in around it
+        vec2 pl = transformed.xz - uSup.xy;
+        vec2 pb = vec2(uSupRot.x * pl.x + uSupRot.y * pl.y, -uSupRot.y * pl.x + uSupRot.x * pl.y);
+        float over = length(max(abs(pb) - uSup.zw, 0.0));
+        float sag = uSag * smoothstep(0.02, 1.15, over);
+        transformed.y -= sag * uHalf.y * 0.62;
+        transformed.xz -= normalize(pl + 1e-4) * sag * 0.05;`
       );
   };
   material.customProgramCacheKey = () => 'saree-fabric';

@@ -38,6 +38,7 @@ interface Ctx {
   dragging: React.RefObject<Entry | null>;
   bounds: Bounds;
   petals: React.RefObject<Map<string, RapierRigidBody>>;
+  bundles: React.RefObject<Map<string, RapierRigidBody>>;
   /** puff of air from (x, z): nearby petals blow outward and up like feathers */
   gust: (x: number, z: number, radius: number, power: number) => void;
 }
@@ -359,7 +360,10 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
         hovering.current = false;
       }
     };
-  }, [saree.id]);
+    const id = saree.id, bundles = ctx.bundles.current;
+    bundles.set(id, body);
+    return () => { bundles.delete(id); };
+  }, [saree.id, ctx]);
 
   // filter: matching drapes hop, others fade back
   useEffect(() => {
@@ -375,7 +379,7 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
   // where the bundle was grabbed, in its own frame (-1..1 across width x and depth z)
   const grab = useRef(new THREE.Vector2());
   const tilt = useRef({ x: 0, vx: 0, z: 0, vz: 0 });
-  const st = useRef({ prev: new THREE.Vector3(), lag: new THREE.Vector3(), lagV: new THREE.Vector3(), ripple: 0, slump: 0, slumpV: 0, prevVy: 0, hold: 0, holdV: 0, gusted: false });
+  const st = useRef({ prev: new THREE.Vector3(), lag: new THREE.Vector3(), lagV: new THREE.Vector3(), ripple: 0, slump: 0, slumpV: 0, prevVy: 0, hold: 0, holdV: 0, gusted: false, drape: 0, drapeV: 0 });
   const tmp = useMemo(() => ({ v: new THREE.Vector3(), a: new THREE.Vector3(), q: new THREE.Quaternion(), qd: new THREE.Quaternion(), e: new THREE.Euler() }), []);
   useFrame((state, dtRaw) => {
     const body = rb.current;
@@ -456,6 +460,35 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
     const held = ctx.dragging.current?.key === saree.id;
     [S.hold, S.holdV] = springStep(S.hold, S.holdV, held ? 1 : 0, 70, 9, dt);
     U.uHold.value = S.hold;
+
+    // Resting on another bundle? Find the one underneath and let the overhang sag around its edge.
+    let support: { sx: number; sz: number; dyaw: number } | null = null;
+    if (!hovering.current && !held && lv.y > -1.5) {
+      const ap = body.translation();
+      const ay = tmp.e.setFromQuaternion(tmp.q.set(r.x, r.y, r.z, r.w), 'YXZ').y;
+      const ca = Math.cos(ay), sa = Math.sin(ay);
+      ctx.bundles.current.forEach((ob, id) => {
+        if (id === saree.id || support) return;
+        const bp = ob.translation();
+        const dy = ap.y - bp.y;
+        if (dy < 0.3 * s || dy > 0.95 * s) return; // not directly above it
+        const wx = bp.x - ap.x, wz = bp.z - ap.z;
+        const br = ob.rotation();
+        const by = new THREE.Euler().setFromQuaternion(new THREE.Quaternion(br.x, br.y, br.z, br.w), 'YXZ').y;
+        // my centre must sit over the other bundle's footprint (in its frame)
+        const cb = Math.cos(by), sb = Math.sin(by);
+        const mx = -wx * cb - wz * sb, mz = wx * sb - wz * cb;
+        if (Math.abs(mx) > (half.x + 0.25) * s || Math.abs(mz) > (half.z + 0.25) * s) return;
+        support = { sx: (wx * ca - wz * sa) / s, sz: (wx * sa + wz * ca) / s, dyaw: by - ay };
+      });
+    }
+    const sup = support as { sx: number; sz: number; dyaw: number } | null;
+    if (sup) {
+      U.uSup.value.set(sup.sx, sup.sz, half.x, half.z);
+      U.uSupRot.value.set(Math.cos(sup.dyaw), Math.sin(sup.dyaw));
+    }
+    [S.drape, S.drapeV] = springStep(S.drape, S.drapeV, sup ? 1 : 0, 46, 9, dt);
+    U.uSag.value = Math.max(0, S.drape);
     U.uTime.value = state.clock.elapsedTime;
     const targetOpacity = dim ? 0.22 : 1;
     for (const m of materials) m.opacity += (targetOpacity - m.opacity) * 0.12;
@@ -581,6 +614,7 @@ function World({ bounds, filter }: DrapeSceneProps & { bounds: Bounds }) {
   const { startDrag, dragging } = useDragController(bounds);
 
   const petals = useRef(new Map<string, RapierRigidBody>());
+  const bundles = useRef(new Map<string, RapierRigidBody>());
   const gust = useCallback((x: number, z: number, radius: number, power: number) => {
     petals.current.forEach(b => {
       const p = b.translation();
@@ -599,6 +633,7 @@ function World({ bounds, filter }: DrapeSceneProps & { bounds: Bounds }) {
   const ctx = useMemo<Ctx>(
     () => ({
       petals,
+      bundles,
       gust,
       startDrag,
       dragging,
