@@ -3,6 +3,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { initSmoothScroll } from './lib/smooth';
 import { Nav } from './components/Nav';
 import { Loader } from './components/Loader';
+import { ScrollIndicator } from './components/ScrollIndicator';
 import { HeroScroller } from './components/HeroScroller';
 import { Collections, Footer } from './components/Collections';
 
@@ -27,6 +28,7 @@ export default function App() {
     <>
       <Loader done={ready} />
       <Nav />
+      <ScrollIndicator />
       <main>
         <HeroScroller ready={ready} onReady={onReady} />
         <Collections />

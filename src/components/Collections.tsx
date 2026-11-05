@@ -24,7 +24,7 @@ export function Collections() {
         scrollTrigger: { trigger: root.current, start: 'top 70%' }
       });
       gsap.utils.toArray<HTMLElement>('.js-card-img').forEach(img => {
-        gsap.fromTo(img, { yPercent: -8 }, { yPercent: 8, ease: 'none', scrollTrigger: { trigger: img.parentElement, scrub: true } });
+        gsap.fromTo(img, { yPercent: 0 }, { yPercent: -100 / 6, ease: 'none', scrollTrigger: { trigger: img.parentElement, scrub: true } });
       });
     },
     { scope: root }
@@ -48,7 +48,7 @@ export function Collections() {
                 src={item.img}
                 alt={item.title}
                 loading="lazy"
-                className="js-card-img absolute inset-0 h-[116%] w-full -translate-y-[8%] object-cover transition-transform duration-[1.4s] ease-silk group-hover:scale-105"
+                className="js-card-img absolute inset-x-0 top-0 h-[120%] w-full object-cover transition-transform duration-[1.4s] ease-silk group-hover:scale-105"
                 style={{ objectPosition: item.pos }}
               />
             </div>

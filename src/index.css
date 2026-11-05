@@ -25,6 +25,13 @@
   body {
     font-family: var(--font-sans);
   }
+  /* Native scrollbar hidden; ScrollIndicator draws a slim light-grey thumb instead. */
+  html {
+    scrollbar-width: none;
+  }
+  html::-webkit-scrollbar {
+    display: none;
+  }
   ::selection {
     background: var(--color-gold);
     color: white;
