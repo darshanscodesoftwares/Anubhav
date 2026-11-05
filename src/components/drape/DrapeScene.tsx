@@ -59,7 +59,7 @@ const LAYOUT = {
   petal: [
     { x: -0.66, z: -0.3, k: 1.2 }, { x: 0.76, z: 0.21, k: 1.35 }, { x: -0.54, z: 0.4, k: 1.1 }, { x: -0.02, z: 0.58, k: 0.95 },
     { x: 0.3, z: -0.42, k: 1.25 }, { x: -0.47, z: 0.88, k: 1.05 }, { x: -0.76, z: 0.31, k: 0.9 }, { x: -0.14, z: 0.3, k: 1.3 },
-    { x: 0.09, z: 0.61, k: 1.0 }, { x: 0.81, z: 0.85, k: 0.85 }
+    { x: 0.09, z: 0.61, k: 1.0 }, { x: 0.81, z: 0.85, k: 0.85 }, { x: 0.36, z: 0.95, k: 1.15 }
   ]
 };
 
@@ -694,7 +694,7 @@ function Petal({ i, at }: { i: number; at: { x: number; z: number; k: number } }
   const s = ctx.bounds.s * at.k;
   const init = useMemo(
     () => ({
-      p: new THREE.Vector3(ctx.bounds.cx + at.x * ctx.bounds.hx, 2.6 + i * 0.7, ctx.bounds.cz + at.z * ctx.bounds.hz),
+      p: new THREE.Vector3(ctx.bounds.cx + at.x * ctx.bounds.hx, 2.4 + (i % 5) * 0.55, ctx.bounds.cz + at.z * ctx.bounds.hz),
       q: new THREE.Quaternion().setFromEuler(new THREE.Euler((i % 3) * 0.3, i * 1.7, (i % 2) * 0.4))
     }),
     [ctx.bounds, at, i]
