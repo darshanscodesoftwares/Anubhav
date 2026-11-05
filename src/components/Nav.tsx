@@ -54,7 +54,7 @@ export function Nav() {
   return (
     <>
       <header
-        className={`js-nav pointer-events-none fixed inset-x-0 top-0 z-40 flex items-start justify-between px-6 pt-6 pb-4 text-ink transition-[translate,background-color,backdrop-filter,box-shadow] duration-[900ms] ease-[cubic-bezier(0.16,1,0.3,1)] md:px-[5.5vw] md:pt-8 ${mode === 'solid' && !open ? '!pt-3 !pb-2 md:!pt-3' : ''} ${
+        className={`js-nav pointer-events-none fixed inset-x-0 top-0 z-40 flex items-start justify-between px-6 pt-6 pb-4 text-ink transition-[translate,background-color,backdrop-filter,box-shadow] duration-[900ms] ease-[cubic-bezier(0.16,1,0.3,1)] md:px-[5.5vw] md:pt-8 ${mode === 'solid' && !open ? '!items-center !pt-3 !pb-3 md:!pt-3' : ''} ${
           mode === 'hidden' && !open ? '-translate-y-full' : 'translate-y-0'
         } ${mode === 'solid' && !open ? 'bg-blush/85 backdrop-blur-md' : ''} ${mode === 'hero' && !open ? 'max-md:bg-[linear-gradient(to_bottom,rgba(243,228,220,0.92)_35%,transparent)] max-md:pb-10' : ''}`}
       >
@@ -66,7 +66,7 @@ export function Nav() {
         <nav
           aria-hidden={mode === 'hero' && !open}
           inert={mode === 'hero' && !open}
-          className={`flex items-center gap-10 ${mode === 'solid' && !open ? 'pt-1' : 'pt-5'} transition-[opacity,translate,visibility] duration-700 ease-silk ${
+          className={`flex items-center gap-10 ${mode === 'solid' && !open ? 'pt-0' : 'pt-5'} transition-[opacity,translate,visibility] duration-700 ease-silk ${
             mode === 'hero' && !open ? 'invisible -translate-y-2 opacity-0' : 'pointer-events-auto visible translate-y-0 opacity-100'
           }`}
         >
