@@ -718,7 +718,8 @@ function Petal({ i, at }: { i: number; at: { x: number; z: number; k: number } }
     const r = b.rotation();
     petalUp.set(0, 1, 0).applyQuaternion(petalQ.set(r.x, r.y, r.z, r.w));
     petalTorque.crossVectors(petalUp, petalWorldUp);
-    const near = y < 0.5 * s ? 1 : 0.07;
+    // levelling fades in smoothly as the petal comes down (a hard switch at one height made it snap flat mid-fall)
+    const near = 0.07 + 0.93 * (1 - THREE.MathUtils.smoothstep(y, 0.15 * s, 1.2 * s));
     const av = b.angvel();
     b.applyTorqueImpulse(
       { x: (petalTorque.x * 2.6 * near - av.x * 0.06) * m * dt, y: 0, z: (petalTorque.z * 2.6 * near - av.z * 0.06) * m * dt },
@@ -740,10 +741,11 @@ function Petal({ i, at }: { i: number; at: { x: number; z: number; k: number } }
       });
       if (px || pz) b.applyImpulse({ x: px * 7 * m * dt, y: py * 3 * m * dt, z: pz * 7 * m * dt }, true);
     }
-    if (y < 0.12) return;
+    const air = THREE.MathUtils.smoothstep(y, 0.05, 0.4);   // flutter fades out as it touches down instead of cutting off
+    if (air <= 0) return;
     const t = state.clock.elapsedTime + i * 1.3;
-    b.applyImpulse({ x: Math.sin(t * 1.7) * 0.9 * m * dt, y: 0, z: Math.cos(t * 1.3) * 0.7 * m * dt }, true);
-    b.applyTorqueImpulse({ x: Math.sin(t * 2.1) * 0.004 * m * dt, y: 0, z: Math.cos(t * 1.9) * 0.004 * m * dt }, true);
+    b.applyImpulse({ x: Math.sin(t * 1.7) * 0.9 * air * m * dt, y: 0, z: Math.cos(t * 1.3) * 0.7 * air * m * dt }, true);
+    b.applyTorqueImpulse({ x: Math.sin(t * 2.1) * 0.004 * air * m * dt, y: 0, z: Math.cos(t * 1.9) * 0.004 * air * m * dt }, true);
   });
   return (
     <>
