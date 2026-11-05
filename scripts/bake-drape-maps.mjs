@@ -48,7 +48,7 @@ const bake = (dataUrl, tint, baseRoughness, strength) => page.evaluate(async (da
     let nr = r * (t.r + (1 - t.r) * goldness), ng = g * (t.g + (1 - t.g) * goldness), nb = b * (t.b + (1 - t.b) * goldness);
     // vibrance: richer gold (zari) and richer reds/pinks (resham, florals), leaving the silk ground and creams alone
     const redness = (ss(316, 346, hue) + (1 - ss(10, 20, hue)) * (hue < 180 ? 1 : 0)) * ss(0.26, 0.5, sat) * ss(0.25, 0.45, max);
-    const gain = 1 + goldness * GOLD_SAT + Math.min(1, redness) * RED_SAT;
+    const gain = 1 + goldness * GOLD_SAT * (strength > 0.5 ? 1 : 0) + Math.min(1, redness) * RED_SAT;
     if (gain > 1.001) {
       const m2 = Math.max(nr, ng, nb), n2 = Math.min(nr, ng, nb), v2 = m2;
       const s2 = m2 > 0 ? Math.min(1, ((m2 - n2) / m2) * gain) : 0;
