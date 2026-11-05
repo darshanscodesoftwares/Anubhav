@@ -50,7 +50,7 @@ const SceneCtx = createContext<Ctx>(null!);
 const LAYOUT = {
   saree: [
     { id: 'maroon', x: 0.1, z: 0.11, ry: 0.35 },
-    { id: 'ivory', x: -0.39, z: -0.04, ry: -0.25 },
+    { id: 'ivory', x: -0.29, z: -0.04, ry: -0.25 },
     { id: 'navy', x: 0.55, z: -0.18, ry: 0.2 },
     { id: 'black', x: -0.2, z: 0.68, ry: 0.18 },
     { id: 'yellow', x: 0.38, z: 0.42, ry: -0.12 }
