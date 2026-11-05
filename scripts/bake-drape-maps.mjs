@@ -30,7 +30,7 @@ const bake = (dataUrl, tint, baseRoughness, strength) => page.evaluate(async (da
   const rm = new ImageData(w, h), o = rm.data;
   const hex = parseInt(tint.slice(1), 16);
   const t = { r: (hex >> 16 & 255) / 255, g: (hex >> 8 & 255) / 255, b: (hex & 255) / 255 };
-  const GOLD_SAT = 0.7, RED_SAT = 0.45;
+  const GOLD_SAT = 0.4, RED_SAT = 0.25;
   const ss = (a, b, x) => { const k = Math.min(1, Math.max(0, (x - a) / (b - a))); return k * k * (3 - 2 * k); };
   for (let i = 0; i < d.length; i += 4) {
     const r = d[i] / 255, g = d[i + 1] / 255, b = d[i + 2] / 255;
