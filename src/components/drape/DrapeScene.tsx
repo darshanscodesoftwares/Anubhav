@@ -49,11 +49,11 @@ const SceneCtx = createContext<Ctx>(null!);
 // Layout in normalised floor coords (-1..1), echoing the design board.
 const LAYOUT = {
   saree: [
-    { id: 'maroon', x: 0.1, z: -0.02, ry: 0.35 },
-    { id: 'ivory', x: -0.28, z: -0.08, ry: -0.25 },
-    { id: 'navy', x: 0.56, z: -0.16, ry: 0.2 },
-    { id: 'black', x: -0.44, z: 0.66, ry: 0.18 },
-    { id: 'yellow', x: 0.4, z: 0.46, ry: -0.12 }
+    { id: 'maroon', x: 0.1, z: 0.11, ry: 0.35 },
+    { id: 'ivory', x: -0.39, z: -0.04, ry: -0.25 },
+    { id: 'navy', x: 0.55, z: -0.18, ry: 0.2 },
+    { id: 'black', x: -0.2, z: 0.68, ry: 0.18 },
+    { id: 'yellow', x: 0.38, z: 0.42, ry: -0.12 }
   ] as const,
   // rose petals scattered through the gaps; the first 6 are used on small screens
   petal: [
@@ -487,7 +487,7 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
     if (!hovering.current && ctx.dragging.current?.key !== saree.id && lv.y < -0.3) {
       const rest = half.y * s;
       const aboveFloor = Math.max(0, body.translation().y - rest);
-      const vt = THREE.MathUtils.lerp(0.45, 1.7, THREE.MathUtils.smoothstep(aboveFloor, 0.04, 0.9));
+      const vt = THREE.MathUtils.lerp(0.6, 2.4, THREE.MathUtils.smoothstep(aboveFloor, 0.04, 0.9));
       if (lv.y < -vt) body.applyImpulse({ x: 0, y: body.mass() * (-vt - lv.y) * 40 * dt, z: 0 }, true);
     }
     tmp.v.set(lv.x, lv.y, lv.z);
