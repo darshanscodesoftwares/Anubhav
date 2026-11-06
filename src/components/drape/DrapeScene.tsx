@@ -917,20 +917,37 @@ function World({ bounds, filter, arcs }: DrapeSceneProps & { bounds: Bounds }) {
     c.x = hit.x;
     c.z = hit.z;
   });
+  // A gust is a pressure wave, not a kick: it expands from the landing point and each petal is pushed by a smooth
+  // bump (sin²) as the front passes it, so petals ease into motion and sail away instead of jumping.
+  const gusts = useRef<{ x: number; z: number; radius: number; power: number; t0: number }[]>([]);
   const gust = useCallback((x: number, z: number, radius: number, power: number) => {
-    petals.current.forEach(b => {
-      const p = b.translation();
-      const dx = p.x - x, dz = p.z - z;
-      const dist = Math.hypot(dx, dz);
-      if (dist > radius) return;
-      const f = Math.pow(1 - dist / radius, 1.4) * power;
-      const nx = dist > 1e-3 ? dx / dist : Math.random() - 0.5, nz = dist > 1e-3 ? dz / dist : Math.random() - 0.5;
-      const m = b.mass();
-      // mostly outward along the surface with a light lift: a skim-and-drift, like feathers
-      b.applyImpulse({ x: nx * f * 10 * m, y: f * (2 + Math.random() * 1.2) * m, z: nz * f * 10 * m }, true);
-      b.applyTorqueImpulse({ x: (Math.random() - 0.5) * f * 0.02 * m, y: (Math.random() - 0.5) * f * 0.03 * m, z: (Math.random() - 0.5) * f * 0.02 * m }, true);
-    });
+    gusts.current.push({ x, z, radius, power, t0: performance.now() / 1000 });
+    if (gusts.current.length > 8) gusts.current.shift();
   }, []);
+  useFrame((_, delta) => {
+    const G = gusts.current;
+    if (!G.length) return;
+    const now = performance.now() / 1000, dt = Math.min(delta, 1 / 30);
+    const FRONT = 0.3, D = 0.55;                       // seconds for the front to reach the edge / width of the push at a petal
+    for (let gi = G.length - 1; gi >= 0; gi--) {
+      const g = G[gi], age = now - g.t0;
+      if (age > FRONT + D + 0.05) { G.splice(gi, 1); continue; }
+      petals.current.forEach((b, key) => {
+        const p = b.translation();
+        const dx = p.x - g.x, dz = p.z - g.z, dist = Math.hypot(dx, dz);
+        if (dist > g.radius) return;
+        const local = age - (dist / g.radius) * FRONT;
+        if (local <= 0 || local >= D) return;
+        const env = Math.sin((Math.PI * local) / D) ** 2;
+        const f = Math.pow(1 - dist / g.radius, 1.4) * g.power;
+        const nx = dist > 1e-3 ? dx / dist : 1, nz = dist > 1e-3 ? dz / dist : 0;
+        const k = env * (2 / D) * dt * b.mass();      // ∫ env dt = D/2 → same total push as the old single kick
+        const id = Number(key.slice(6)) || 0;
+        b.applyImpulse({ x: nx * f * 26 * k, y: f * 6 * k, z: nz * f * 26 * k }, true);
+        b.applyTorqueImpulse({ x: Math.sin(id * 12.9 + g.t0) * f * 0.01 * k, y: Math.sin(id * 7.3 + g.t0 * 2) * f * 0.015 * k, z: Math.cos(id * 5.1 + g.t0) * f * 0.01 * k }, true);
+      });
+    }
+  });
 
   const ctx = useMemo<Ctx>(
     () => ({
