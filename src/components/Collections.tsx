@@ -1,60 +1,105 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { gsap } from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useGSAP } from '@gsap/react';
 import { Lotus } from './Logo';
+import { FILTERS, PIECES, type Filter } from '../data/collection';
 
-const ITEMS = [
-  { id: 'sarees', title: 'Sarees', note: 'Banarasi, Kanjivaram, organza & net', img: '/hero/02.webp', pos: '62% 40%' },
-  { id: 'lehengas', title: 'Lehengas', note: 'Bridal and festive, hand embroidered', img: '/hero/03.webp', pos: '58% 45%' },
-  { id: 'fusion', title: 'Fusion Wear', note: 'Jackets, co-ords & Indo-western', img: '/hero/04.webp', pos: '50% 40%' },
-  { id: 'everyday', title: 'Everyday Drapes', note: 'Light weaves for every day', img: '/hero/05.webp', pos: '55% 35%' }
-];
+function Heart({ on }: { on: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" className="h-[1.15rem] w-[1.15rem]" fill={on ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" aria-hidden>
+      <path d="M12 20.5s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.7c0 5.6-7.5 10.2-7.5 10.2Z" />
+    </svg>
+  );
+}
 
 export function Collections() {
   const root = useRef<HTMLElement>(null);
+  const grid = useRef<HTMLDivElement>(null);
+  const [filter, setFilter] = useState<Filter>('All');
+  const [saved, setSaved] = useState<Record<string, boolean>>({});
+  const first = useRef(true);
+
+  const shown = PIECES.filter(p => filter === 'All' || p.tags.includes(filter));
 
   useGSAP(
     () => {
       gsap.from('.js-reveal', {
-        y: 60,
+        y: 50,
         autoAlpha: 0,
-        duration: 1.2,
+        duration: 1.1,
         ease: 'power3.out',
-        stagger: 0.12,
-        scrollTrigger: { trigger: root.current, start: 'top 70%' }
-      });
-      gsap.utils.toArray<HTMLElement>('.js-card-img').forEach(img => {
-        gsap.fromTo(img, { yPercent: 0 }, { yPercent: -100 / 6, ease: 'none', scrollTrigger: { trigger: img.parentElement, scrub: true } });
+        stagger: 0.09,
+        scrollTrigger: { trigger: root.current, start: 'top 72%' }
       });
     },
     { scope: root }
   );
 
+  // cards rise in again whenever the filter changes (not on first paint — the scroll reveal handles that)
+  useGSAP(
+    () => {
+      if (first.current) { first.current = false; return; }
+      gsap.fromTo('.js-piece', { y: 26, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.7, ease: 'power3.out', stagger: 0.06, overwrite: true });
+      requestAnimationFrame(() => ScrollTrigger.refresh());
+    },
+    { scope: grid, dependencies: [filter] }
+  );
+
   return (
-    <section ref={root} id="collections" className="relative bg-blush px-6 py-28 md:px-[5.6vw] md:py-40">
-      <div className="js-reveal mb-16 flex flex-col items-start gap-6 md:mb-24 md:flex-row md:items-end md:justify-between">
-        <div>
-          <p className="kicker mb-6 text-gold">The Atelier</p>
-          <h2 className="font-serif text-[clamp(2.8rem,5.5vw,5rem)] font-medium italic leading-none">Curated for you</h2>
-        </div>
-        <p className="max-w-sm text-lg leading-relaxed text-ink-soft">Every piece is chosen by hand — handloom weaves, heirloom embroidery and modern silhouettes under one roof.</p>
+    <section ref={root} id="collections" className="relative bg-blush px-6 py-24 md:px-[5.6vw] md:py-32">
+      <div className="js-reveal flex flex-col gap-5 md:flex-row md:items-center md:gap-10">
+        <p className="kicker text-gold md:w-52">Collections</p>
+        <h2 className="font-serif text-[clamp(3rem,6vw,5.4rem)] font-medium italic leading-none">Sarees</h2>
+        <span className="hidden h-14 w-px bg-ink/25 md:block" />
+        <p className="max-w-sm text-[1.02rem] leading-snug text-ink-soft">A curated edit of handloom silks and embroidered drapes.</p>
       </div>
 
-      <div className="grid gap-x-8 gap-y-14 sm:grid-cols-2 lg:grid-cols-4">
-        {ITEMS.map(item => (
-          <a key={item.id} id={item.id} href={`#${item.id}`} className="js-reveal group block">
-            <div className="relative aspect-[3/4] overflow-hidden bg-blush-deep">
+      <div className="js-reveal mt-10 flex flex-wrap items-center gap-x-2 gap-y-2 md:mt-12">
+        {FILTERS.map(f => (
+          <button
+            key={f}
+            type="button"
+            onClick={() => setFilter(f)}
+            aria-pressed={filter === f}
+            className={`rounded-full px-5 py-2 text-[0.95rem] transition-colors duration-500 ease-silk ${
+              filter === f ? 'bg-gold-soft/80 text-blush' : 'text-ink/70 hover:text-ink'
+            }`}
+          >
+            {f}
+          </button>
+        ))}
+      </div>
+
+      <div ref={grid} className="mt-10 grid grid-cols-2 gap-x-5 gap-y-12 md:mt-14 md:gap-x-10 lg:grid-cols-4">
+        {shown.map(piece => (
+          <article key={piece.id} className="js-reveal js-piece group">
+            <div className="relative aspect-[1/1.05] overflow-hidden border-b border-ink/25">
               <img
-                src={item.img}
-                alt={item.title}
+                src={`/collection/${piece.id}.webp`}
+                alt={`${piece.name} saree`}
                 loading="lazy"
-                className="js-card-img absolute inset-x-0 top-0 h-[120%] w-full object-cover transition-transform duration-[1.4s] ease-silk group-hover:scale-105"
-                style={{ objectPosition: item.pos }}
+                width={760}
+                height={832}
+                draggable={false}
+                className="absolute inset-x-0 bottom-0 h-full w-full object-contain object-bottom transition-transform duration-[1.2s] ease-silk group-hover:scale-[1.035]"
               />
             </div>
-            <h3 className="mt-6 font-serif text-3xl font-medium italic">{item.title}</h3>
-            <p className="mt-2 text-ink-soft">{item.note}</p>
-          </a>
+            <div className="mt-3 flex items-start justify-between gap-3">
+              <h3 className="font-serif text-[1.35rem] font-medium leading-tight">{piece.name}</h3>
+              <button
+                type="button"
+                aria-label={saved[piece.id] ? 'Remove from saved' : 'Save'}
+                aria-pressed={!!saved[piece.id]}
+                onClick={() => setSaved(s => ({ ...s, [piece.id]: !s[piece.id] }))}
+                className={`mt-1 shrink-0 transition-colors duration-300 ${saved[piece.id] ? 'text-gold' : 'text-ink/60 hover:text-gold'}`}
+              >
+                <Heart on={!!saved[piece.id]} />
+              </button>
+            </div>
+            <p className="font-serif text-[1.15rem]">{piece.price}</p>
+            <p className="mt-1 text-[0.72rem] tracking-wide text-ink-soft">{piece.notes.join('  |  ')}</p>
+          </article>
         ))}
       </div>
     </section>
