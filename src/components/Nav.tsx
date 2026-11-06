@@ -29,6 +29,14 @@ export function Nav() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  // The hamburger only exists on small screens: if the window grows past `md` while the menu is open, close it.
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)');
+    const onChange = () => mq.matches && setOpen(false);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+
   // Lock page scroll while the menu is open; Escape closes it.
   useEffect(() => {
     if (!open) return;
@@ -87,7 +95,7 @@ export function Nav() {
             onClick={() => setOpen(o => !o)}
             aria-label="Menu"
             aria-expanded={open}
-            className="flex h-6 w-10 flex-col justify-between py-1 rounded-sm outline-none focus-visible:outline-1 focus-visible:outline-offset-[6px] focus-visible:outline-current/40"
+            className="flex h-6 w-10 flex-col justify-between py-1 rounded-sm outline-none md:hidden focus-visible:outline-1 focus-visible:outline-offset-[6px] focus-visible:outline-current/40"
           >
             <span className={`h-px w-full bg-current transition-transform duration-500 ease-silk ${open ? 'translate-y-1.75 rotate-45' : ''}`} />
             <span className={`h-px w-full bg-current transition-opacity duration-300 ${open ? 'opacity-0' : ''}`} />
@@ -98,7 +106,7 @@ export function Nav() {
 
       {/* Outside the header: its transform/backdrop-filter would otherwise trap this fixed overlay inside the header box. */}
       <div
-        className={`fixed inset-0 z-30 flex flex-col items-center justify-center gap-8 bg-blush/95 backdrop-blur-md transition-[opacity,visibility] duration-700 ease-silk ${open ? 'visible opacity-100' : 'invisible opacity-0'}`}
+        className={`fixed inset-0 z-30 flex flex-col items-center justify-center gap-8 md:hidden bg-blush/95 backdrop-blur-md transition-[opacity,visibility] duration-700 ease-silk ${open ? 'visible opacity-100' : 'invisible opacity-0'}`}
         aria-hidden={!open}
         inert={!open}
       >
