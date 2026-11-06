@@ -296,7 +296,7 @@ function useDragController(bounds: Bounds) {
 
 /** Top row floats mid-toss (like the design board); the bottom two rest on the surface. */
 /** embroidery relief strength per saree (0 = flat) */
-const BUMP: Record<Saree['id'], number> = { maroon: 2.2, ivory: 0.8, navy: 2.6, black: 2.4, yellow: 1.4 };
+const BUMP: Record<Saree['id'], number> = { maroon: 5, ivory: 1.8, navy: 6, black: 5.5, yellow: 3.2 };
 const FLOATING: Saree['id'][] = ['ivory', 'maroon', 'navy'];
 
 /** half of the pillow/wrinkle height above the base box (see makeBundleGeometry) */
