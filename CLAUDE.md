@@ -299,6 +299,7 @@ Owner request: append an entry here after every change session.
 - **2026‑11‑06** — Owner: relief "even more". `BUMP` strengths doubled: maroon 5, ivory 1.8, navy 6, black 5.5, yellow 3.2.
 - **2026‑11‑06** — Owner: relief on the navy saree too, "even more". Replaced the colour-map-as-height trick on the top faces with **dedicated height maps** baked by `bake-drape-maps.mjs` (`bakeHeight` → `public/drape/top-<id>-h.webp`, grayscale in the page canvas): luminance of the original texture, high-passed (`0.45·blur2.2 + 0.55·blur6 − blur28`, ×2.4, plus a little fine detail) so motifs stand out of the ground whatever its colour and each reads as a domed cushion. `face()` uses it as `bumpMap` for top faces (edge faces still use the colour map); the `Warm` texture list includes `bumpMap`. `BUMP` strengths raised: maroon 7, ivory 3, navy 9, black 8, yellow 5. Side effects seen in the render: velvet/silk grounds now show a little fabric crinkle, and the black saree's red flowers get faint pink rim highlights. Lower `BUMP` (or the ×2.4 in `bakeHeight`) if it reads rough.
 - **2026‑11‑06** — Owner: relief "slightly less". `BUMP` reduced ≈25 %: maroon 5.2, ivory 2.3, navy 6.8, black 6, yellow 3.8.
+- **2026‑11‑06** — Owner: relief a little less again. `BUMP` ≈ −27 %: maroon 3.8, ivory 1.7, navy 5, black 4.4, yellow 2.8.
 
 ## Next / ideas
 
