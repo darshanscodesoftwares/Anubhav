@@ -320,6 +320,7 @@ Owner request: append an entry here after every change session.
 - **2026‑11‑06** — Owner: leaf swing "a little more" down. Swing push 4.2 → 3.2, bank torque 3 → 2.3, lean gain/clamp 0.6/±0.35 → 0.5/±0.28.
 - **2026‑11‑06** — Owner: petals look like clay — add near-invisible (~20 %) nerve lines. `makePetalTexture` (`models.tsx`) is now 256×512 (was 128×256) and after the per-pixel paint draws hair-fine veins on the canvas: 15 main nerves fanning from the base to the rim, each forking up to two levels (`vein()`), 0.9 px, `rgba(170,40,80,0.16)`, deterministic pseudo-random (seed 7). Barely visible at normal size, only a faint tissue-like grain up close. Tune the alpha 0.16 / width 0.9 / count 15.
 - **2026‑11‑06** — Owner: petal veins a little more visible: alpha 0.16 → 0.26, width 0.9 → 1.05 px.
+- **2026‑11‑06** — Owner: petal veins a little more again: alpha 0.26 → 0.36, width 1.05 → 1.2 px.
 
 ## Next / ideas
 
