@@ -79,8 +79,8 @@ export function Collections() {
                 src={`/collection/${piece.id}.webp`}
                 alt={`${piece.name} saree`}
                 loading="lazy"
-                width={760}
-                height={832}
+                width={820}
+                height={897}
                 draggable={false}
                 className="absolute inset-x-0 bottom-0 h-full w-full object-contain object-bottom transition-transform duration-[1.2s] ease-silk group-hover:scale-[1.035]"
               />
