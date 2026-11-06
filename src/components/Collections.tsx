@@ -33,15 +33,15 @@ function PieceImage({ piece }: { piece: Piece }) {
       if (reduce) {
         t.to(q('.js-base'), { autoAlpha: 0, duration: 0.35, ease: 'none' }, 0).to(q('.js-c'), { autoAlpha: 1, duration: 0.35, ease: 'none' }, 0);
       } else {
-        gsap.set(q('.js-b'), { autoAlpha: 0, xPercent: 3, scale: 1.04 });
+        gsap.set(q('.js-b'), { autoAlpha: 0, xPercent: 3, scale: 1.04, '--wipe': -34 });
         gsap.set(q('.js-c'), { autoAlpha: 1, '--wipe': -34, xPercent: 2.5, scale: 1.045 });
-        // 1 · portrait slips away, flourish drifts in from the right
-        t.to(q('.js-base'), { autoAlpha: 0, xPercent: -3, scale: 1.03, duration: 0.8 }, 0)
-          .to(q('.js-b'), { autoAlpha: 1, xPercent: 0, scale: 1, duration: 0.85, ease: 'power3.out' }, 0.05)
-          // 2 · the full drape sweeps across on a soft mask edge, settling as it lands
-          .to(q('.js-c'), { '--wipe': 134, duration: 1.35, ease: 'power2.inOut' }, 0.55)
-          .to(q('.js-c'), { xPercent: 0, scale: 1, duration: 1.5, ease: 'power3.out' }, 0.55)
-          .to(q('.js-b'), { autoAlpha: 0, duration: 0.7, ease: 'power1.in' }, 0.95);
+        // One continuous, overlapping move. The two last poses are masked by complementary soft gradients driven by the
+        // same --wipe, so the sweep is a true directional cross-dissolve (no double exposure).
+        t.to(q('.js-base'), { autoAlpha: 0, xPercent: -2.5, scale: 1.025, duration: 1.0, ease: 'sine.inOut' }, 0)
+          .to(q('.js-b'), { autoAlpha: 1, xPercent: 0, scale: 1, duration: 1.1, ease: 'sine.out' }, 0.05)
+          .to(q('.js-c'), { '--wipe': 134, duration: 1.7, ease: 'sine.inOut' }, 0.55)
+          .to(q('.js-b'), { '--wipe': 134, xPercent: -2, scale: 1.015, duration: 1.7, ease: 'sine.inOut' }, 0.55)
+          .to(q('.js-c'), { xPercent: 0, scale: 1, duration: 2.0, ease: 'expo.out' }, 0.55);
       }
       tl.current = t;
       return () => { t.kill(); };
@@ -69,10 +69,10 @@ function PieceImage({ piece }: { piece: Piece }) {
       />
       {poses && (
         <>
-          <img src={`/collection/${poses[0]}.webp`} alt="" aria-hidden width={820} height={897} draggable={false} loading="lazy"
-            className="js-b pointer-events-none absolute inset-x-0 bottom-0 h-full w-full object-contain object-bottom opacity-0" />
-          <img src={`/collection/${poses[1]}.webp`} alt="" aria-hidden width={820} height={897} draggable={false} loading="lazy"
-            className="js-c pointer-events-none absolute inset-x-0 bottom-0 h-full w-full object-contain object-bottom opacity-0 [mask-image:linear-gradient(104deg,#000_calc(var(--wipe,0)*1%-13%),transparent_calc(var(--wipe,0)*1%+13%))] [-webkit-mask-image:linear-gradient(104deg,#000_calc(var(--wipe,0)*1%-13%),transparent_calc(var(--wipe,0)*1%+13%))]" />
+          <img src={`/collection/${poses[0]}.webp`} alt="" aria-hidden width={820} height={897} draggable={false} decoding="async"
+            className="js-b pointer-events-none absolute inset-x-0 bottom-0 h-full w-full transform-gpu object-contain object-bottom opacity-0 will-change-[transform,opacity] [mask-image:linear-gradient(104deg,transparent_calc(var(--wipe,0)*1%-13%),#000_calc(var(--wipe,0)*1%+13%))] [-webkit-mask-image:linear-gradient(104deg,transparent_calc(var(--wipe,0)*1%-13%),#000_calc(var(--wipe,0)*1%+13%))]" />
+          <img src={`/collection/${poses[1]}.webp`} alt="" aria-hidden width={820} height={897} draggable={false} decoding="async"
+            className="js-c pointer-events-none absolute inset-x-0 bottom-0 h-full w-full transform-gpu will-change-[transform,opacity] object-contain object-bottom opacity-0 [mask-image:linear-gradient(104deg,#000_calc(var(--wipe,0)*1%-13%),transparent_calc(var(--wipe,0)*1%+13%))] [-webkit-mask-image:linear-gradient(104deg,#000_calc(var(--wipe,0)*1%-13%),transparent_calc(var(--wipe,0)*1%+13%))]" />
         </>
       )}
     </div>
