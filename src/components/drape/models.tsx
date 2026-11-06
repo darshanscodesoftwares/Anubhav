@@ -49,7 +49,7 @@ export function usePetalGeometry() {
 
 /** Paints the petal: deep pink rim, base and tip fading to a pale, translucent-looking centre, with fine veins. */
 function makePetalTexture() {
-  const W = 128, H = 256;
+  const W = 256, H = 512;
   const c = document.createElement('canvas');
   c.width = W;
   c.height = H;
@@ -82,6 +82,37 @@ function makePetalTexture() {
     }
   }
   g.putImageData(img, 0, 0);
+  // Hair-fine veins (≈ 20 % visible): a fan of nerves from the base that fork toward the rim, so the petal reads as
+  // thin living tissue rather than smooth clay. Deterministic pseudo-random so every load looks the same.
+  let seed = 7;
+  const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  const X = (v: number) => ((v + 1) / 2) * (W - 1), Y = (u: number) => u * (H - 1);
+  const vein = (v0: number, u0: number, vEnd: number, uEnd: number, depth: number) => {
+    const steps = 18, wob = (rnd() - 0.5) * 0.05;
+    g.beginPath();
+    let lastV = v0, lastU = u0;
+    for (let k = 0; k <= steps; k++) {
+      const t = k / steps;
+      const v = v0 + (vEnd - v0) * t ** 0.85 + Math.sin(t * 6 + wob * 40) * wob;
+      const u = u0 + (uEnd - u0) * t;
+      k ? g.lineTo(X(v), Y(u)) : g.moveTo(X(v), Y(u));
+      lastV = v; lastU = u;
+    }
+    g.stroke();
+    if (depth < 2) for (let b = 0; b < 2; b++) {
+      const t = 0.45 + rnd() * 0.3;
+      const bv = v0 + (vEnd - v0) * t ** 0.85, bu = u0 + (uEnd - u0) * t;
+      vein(bv, bu, bv + (vEnd - v0) * (0.35 + rnd() * 0.25) * (b ? 1 : -0.4), Math.min(0.98, bu + (uEnd - u0) * (0.3 + rnd() * 0.2)), depth + 1);
+    }
+    return [lastV, lastU];
+  };
+  g.lineCap = 'round';
+  g.strokeStyle = 'rgba(170, 40, 80, 0.16)';
+  g.lineWidth = 0.9;
+  for (let n = 0; n < 15; n++) {
+    const vEnd = -0.95 + (1.9 * n) / 14 + (rnd() - 0.5) * 0.08;
+    vein(0, 0.02, vEnd, 0.9 + rnd() * 0.08, 0);
+  }
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = 4;
