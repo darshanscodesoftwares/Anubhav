@@ -501,25 +501,33 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
       if (A.mode !== 'none') {
         const sc = scaleRef.current;
         if (A.mode === 'pull') {
-          // Sucked in right where it was let go: nothing drags it toward the box. It lifts a touch, strains against the pull
-          // (stretching tall each time it's yanked and slumping back), then gives way and is drawn down into a point.
-          A.t = Math.min(1, A.t + dt / 2.1);
+          // Sucked in where it was let go: it turns to face the box, lifts a touch and strains against the pull (stretching
+          // toward the box with each yank, slumping back), then gives way — and is stretched out into a ribbon that pours
+          // into the box's mouth, thinning to nothing as it goes in.
+          A.t = Math.min(1, A.t + dt / 2.3);
           const t = A.t;
           const strain = Math.sin(t * Math.PI * 7.5) * Math.min(1, t * 5) * (1 - t) ** 0.8;
           const prog = THREE.MathUtils.clamp(t ** 1.7 + 0.055 * strain, 0, 1);
-          const fall = THREE.MathUtils.clamp((prog - 0.6) / 0.4, 0, 1);
-          const lift = Math.sin(Math.min(1, prog / 0.6) * Math.PI * 0.5) * 0.22 * s;       // anticipation
-          const gy = A.from.y + lift - 0.4 * s * fall * fall;
-          const shake = Math.sin(t * 90) * 0.03 * s * Math.abs(strain) * (1 - fall);
-          body.setNextKinematicTranslation(tmp.v.set(A.from.x + shake, gy, A.from.z));
-          body.setNextKinematicRotation(tmp.q.setFromEuler(tmp.e.set(0, A.yaw0, 0)));
-          B.py = gy - 0.15 * s;
+          const f = THREE.MathUtils.clamp((prog - 0.58) / 0.42, 0, 1);           // the final pour
+          const e = f ** 1.5;
+          const dxw = B.x - A.from.x, dzw = B.z - A.from.z, dl = Math.hypot(dxw, dzw) || 1;
+          // line its long axis (local x) up with the pull direction
+          const yawT = Math.atan2(-dzw, dxw);
+          let dy = yawT - A.yaw0; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+          const yaw = A.yaw0 + dy * THREE.MathUtils.smoothstep(prog, 0.0, 0.5);
+          const lift = Math.sin(Math.min(1, prog / 0.58) * Math.PI * 0.5) * 0.22 * s;
+          const mouthY = B.top + 0.35 * s;
+          const cx = A.from.x + dxw * e, cz = A.from.z + dzw * e;
+          const cy = A.from.y + lift + (mouthY - A.from.y - lift) * Math.min(1, e * 1.4) + (B.deep - mouthY) * Math.max(0, e - 0.7) / 0.3;
+          const shake = Math.sin(t * 90) * 0.03 * s * Math.abs(strain) * (1 - f);
+          body.setNextKinematicTranslation(tmp.v.set(cx - (dzw / dl) * shake, cy, cz + (dxw / dl) * shake));
+          body.setNextKinematicRotation(tmp.q.setFromEuler(tmp.e.set(0, yaw, 0)));
+          B.py = cy;
           if (sc) {
-            const tension = (0.35 + 0.65 * Math.max(0, strain)) * (1 - fall * 0.4) * Math.min(1, t * 4);
-            const k = 1 - 0.9 * fall ** 1.2;
-            const sx = k * (1 - 0.14 * tension), sz = k * (1 - 0.14 * tension);
-            const sy = k * (1 + 0.5 * tension + 1.2 * fall ** 2);
-            sc.scale.set(Math.max(0.04, sx), Math.max(0.04, sy), Math.max(0.04, sz));
+            const tension = (0.35 + 0.65 * Math.max(0, strain)) * Math.min(1, t * 4) * (1 - f);
+            const k = 1 - 0.94 * e ** 1.15;                                          // thins away at the mouth
+            const stretch = 1 + 0.4 * tension + 0.95 * Math.sin(Math.PI * Math.min(1, e * 1.05)) ** 0.8; // long ribbon mid-pour
+            sc.scale.set(Math.max(0.04, k * stretch), Math.max(0.04, k * (1 - 0.1 * tension)), Math.max(0.04, k * (1 - 0.14 * tension - 0.35 * e)));
             sc.rotation.set(0, 0, 0);
           }
           if (A.t >= 1) {
@@ -527,7 +535,7 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
             body.setEnabled(false);
             B.phase = 'inside';
             setInBox(true);
-            globalThis.setTimeout(() => ctx.onBoxOpen(saree.id), 260);
+            globalThis.setTimeout(() => ctx.onBoxOpen(saree.id), 220);
           }
         } else if (A.mode === 'inside') {
           if (B.phase === 'spit' && B.occupant === saree.id) {
