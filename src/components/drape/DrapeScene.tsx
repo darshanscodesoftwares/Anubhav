@@ -295,6 +295,8 @@ function useDragController(bounds: Bounds) {
 /* ------------------------------------------------------------------ saree bundle */
 
 /** Top row floats mid-toss (like the design board); the bottom two rest on the surface. */
+/** embroidery relief strength per saree (0 = flat) */
+const BUMP: Record<Saree['id'], number> = { maroon: 2.2, ivory: 0.8, navy: 2.6, black: 2.4, yellow: 1.4 };
 const FLOATING: Saree['id'][] = ['ivory', 'maroon', 'navy'];
 
 /** half of the pillow/wrinkle height above the base box (see makeBundleGeometry) */
@@ -363,6 +365,10 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
       const weave = saree.weave;
       const m = new THREE.MeshPhysicalMaterial({
         map: prep(colour, true, rx, ox, ry, oy),
+        // relief: the embroidery is brighter than the ground, so the colour map's red channel doubles as a height map —
+        // flowers and zari catch light like raised thread (same texture object, no extra upload)
+        bumpMap: prep(colour, true, rx, ox, ry, oy),
+        bumpScale: BUMP[saree.id],
         roughnessMap: zm,
         metalnessMap: zm,
         roughness: 1,
