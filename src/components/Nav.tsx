@@ -3,6 +3,7 @@ import { Logo } from './Logo';
 import { getLenis, scrollToTarget } from '../lib/smooth';
 
 const LINKS = [
+  { label: 'Pick a Drape', href: '#drapes' },
   { label: 'Collections', href: '#collections' },
   { label: 'About', href: '#about' }
 ];
