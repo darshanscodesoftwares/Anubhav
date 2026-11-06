@@ -107,8 +107,8 @@ function makePetalTexture() {
     return [lastV, lastU];
   };
   g.lineCap = 'round';
-  g.strokeStyle = 'rgba(170, 40, 80, 0.16)';
-  g.lineWidth = 0.9;
+  g.strokeStyle = 'rgba(165, 35, 78, 0.26)';
+  g.lineWidth = 1.05;
   for (let n = 0; n < 15; n++) {
     const vEnd = -0.95 + (1.9 * n) / 14 + (rnd() - 0.5) * 0.08;
     vein(0, 0.02, vEnd, 0.9 + rnd() * 0.08, 0);
