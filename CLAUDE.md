@@ -303,6 +303,7 @@ Owner request: append an entry here after every change session.
 
 ## Next / ideas
 
+- **Next (queued by owner, in this order):** (1) revamp the **Collections** section (brief to come); (2) then build **Atelier** as a real section — the craft story: how the sarees are made, the weavers, a studio visit. Today `#atelier` is only the address/hours block inside the footer area of `Collections.tsx`, and the nav link points at it.
 - Ask owner for text-free renders at higher res (≥2400 px) for sharper large screens; current plates are 1672 px.
 - Real store address/phone in footer; real collection pages behind CTAs (currently anchor to the grid).
 - Fine-tune fabric polygons per scene with `?edit` if any edge looks off on owner's screen.
