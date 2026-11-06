@@ -4,7 +4,6 @@ import { getLenis, scrollToTarget } from '../lib/smooth';
 
 const LINKS = [
   { label: 'Collections', href: '#collections' },
-  { label: 'Atelier', href: '#atelier' },
   { label: 'About', href: '#about' }
 ];
 
