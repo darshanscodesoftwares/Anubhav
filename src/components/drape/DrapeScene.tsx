@@ -495,23 +495,32 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
       if (A.mode !== 'none') {
         const sc = scaleRef.current;
         if (A.mode === 'pull') {
-          // Wormhole: it creeps, then is yanked faster and faster along a tightening spiral into the mouth of the box,
-          // spinning, stretching into a streak and shrinking to nothing as it falls through.
-          A.t = Math.min(1, A.t + dt / 1.5);
-          const e = A.t ** 2.3;                                  // slow start, violent finish
-          const mouthY = B.top + 0.55 * s;
-          const rad = (1 - e) ** 1.4 * Math.min(1.9 * s, Math.hypot(A.from.x - B.x, A.from.z - B.z));
-          const ang = Math.atan2(A.from.z - B.z, A.from.x - B.x) + 9 * e ** 0.85;
-          const gx = B.x + Math.cos(ang) * rad, gz = B.z + Math.sin(ang) * rad;
-          const fall = THREE.MathUtils.clamp((A.t - 0.62) / 0.38, 0, 1);
-          const gy = (A.from.y + (mouthY - A.from.y) * Math.min(1, A.t / 0.62) ** 0.8) + (B.deep - mouthY) * fall * fall;
-          body.setNextKinematicTranslation(tmp.v.set(gx, gy, gz));
-          const yaw = A.yaw0 + (LAYOUT.box.ry - A.yaw0) * Math.min(1, A.t * 1.5) + 7.5 * Math.PI * e ** 1.15;
-          body.setNextKinematicRotation(tmp.q.setFromEuler(tmp.e.set(0, yaw, 0)));
+          // Tugged in a straight line: the box strains against the saree — it lurches forward, snags and slips back a
+          // few times (the cloth stretching toward the box each time it's yanked), then gives way and is pulled through.
+          A.t = Math.min(1, A.t + dt / 2.1);
+          const t = A.t;
+          const strain = Math.sin(t * Math.PI * 7.5) * Math.min(1, t * 5) * (1 - t) ** 0.8;   // tug / slack cycles, fading out as it gives
+          const prog = THREE.MathUtils.clamp(t ** 1.7 + 0.055 * strain, 0, 1);
+          const mouthY = B.top + 0.5 * s;
+          const fall = THREE.MathUtils.clamp((prog - 0.6) / 0.4, 0, 1);
+          const approach = Math.min(1, prog / 0.6);
+          const gx = A.from.x + (B.x - A.from.x) * approach, gz = A.from.z + (B.z - A.from.z) * approach;
+          const gy = A.from.y + (mouthY - A.from.y) * approach ** 0.85 + (B.deep - mouthY) * fall * fall;
+          // a little shudder across the pull direction while it resists
+          const dxw = B.x - A.from.x, dzw = B.z - A.from.z, dl = Math.hypot(dxw, dzw) || 1;
+          const shake = Math.sin(t * 90) * 0.035 * s * Math.abs(strain) * (1 - fall);
+          body.setNextKinematicTranslation(tmp.v.set(gx - (dzw / dl) * shake, gy, gz + (dxw / dl) * shake));
+          body.setNextKinematicRotation(tmp.q.setFromEuler(tmp.e.set(0, A.yaw0, 0)));
           if (sc) {
-            const k = 1 - e ** 0.9;                              // overall size → 0
-            sc.scale.set(Math.max(0.04, k * (1 - 0.3 * e)), Math.max(0.04, k * (1 + 0.9 * Math.sin(Math.PI * Math.min(1, e * 1.1)))), Math.max(0.04, k * (1 - 0.3 * e)));
-            sc.rotation.set(0, 0, 0.5 * Math.sin(e * Math.PI));
+            // stretch toward the box (in the saree's own frame) while it's under tension; squash a touch across; narrow to a streak at the end
+            const c = Math.cos(A.yaw0), sn = Math.sin(A.yaw0);
+            const lx = Math.abs((dxw / dl) * c - (dzw / dl) * sn), lz = Math.abs((dxw / dl) * sn + (dzw / dl) * c);
+            const tension = (0.35 + 0.65 * Math.max(0, strain)) * (1 - fall * 0.4) * Math.min(1, t * 4);
+            const k = 1 - 0.8 * fall ** 1.2;
+            const sx = k * (1 + 0.42 * tension * lx - 0.14 * tension * lz), sz = k * (1 + 0.42 * tension * lz - 0.14 * tension * lx);
+            const sy = k * (1 - 0.12 * tension + 0.7 * fall ** 2);
+            sc.scale.set(Math.max(0.05, sx), Math.max(0.05, sy), Math.max(0.05, sz));
+            sc.rotation.set(0, 0, 0);
           }
           if (A.t >= 1) {
             A.mode = 'inside';
@@ -536,7 +545,7 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
           tmp.v.set(B.x + (tx - B.x) * e, B.deep + (ty - B.deep) * e + Math.sin(Math.PI * Math.min(1, A.t * 1.1)) * 1.1 * s, B.z + (tz - B.z) * e);
           body.setNextKinematicTranslation(tmp.v);
           if (sc) { sc.scale.setScalar(0.06 + 0.94 * e); sc.rotation.set(0, 0, 0); }
-          body.setNextKinematicRotation(tmp.q.setFromEuler(tmp.e.set(0, LAYOUT.box.ry + (A.yaw0 - LAYOUT.box.ry) * e + (1 - e) ** 2 * 5 * Math.PI, 0)));
+          body.setNextKinematicRotation(tmp.q.setFromEuler(tmp.e.set(0, A.yaw0, 0)));
           if (A.t >= 1) {
             A.mode = 'none';
             sc?.scale.setScalar(1);
