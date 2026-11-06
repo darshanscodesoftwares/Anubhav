@@ -7,6 +7,7 @@ import {
   Physics,
   RigidBody,
   RoundCuboidCollider,
+  type RapierCollider,
   type RapierRigidBody
 } from '@react-three/rapier';
 import { SAREES, type Saree, type Tag } from './data';
@@ -869,6 +870,8 @@ function DeliveryBox() {
   const vortexMat = useMemo(() => new THREE.MeshBasicMaterial({ map: makeVortexTexture(), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, side: THREE.DoubleSide }), []);
   const rb = useRef<RapierRigidBody>(null);
   const lid = useRef<THREE.Group>(null);
+  const col = useRef<RapierCollider>(null);
+  const solid = useRef(true);
   const L = useRef({ a: 0, v: 0 });
   const M = useMemo(() => boxMaterials(), []);
   const geo = useMemo(() => ({
@@ -903,6 +906,11 @@ function DeliveryBox() {
       near = Math.hypot(p.x - B.x, p.z - B.z) < B.reach;
     }
     B.near = near;
+    // While a saree is being carried around the box, the box stops being solid to it, so a held saree can never jam into
+    // (or be shoved by) the chest on its way to the mouth; petals and resting sarees still bump into it otherwise.
+    const carrying = !!d?.heavy && Math.hypot(d.rb.translation().x - B.x, d.rb.translation().z - B.z) < B.reach * 2.1;
+    const wantSolid = !(carrying || B.phase === 'pull' || B.phase === 'spit');
+    if (col.current && wantSolid !== solid.current) { col.current.setSensor(!wantSolid); solid.current = wantSolid; }
     const open = near || B.phase === 'pull' || B.phase === 'spit' ? 1 : 0;
     // a soft hinge spring: swings open with a little settle, closes gently
     [L.current.a, L.current.v] = springStep(L.current.a, L.current.v, open, open ? 34 : 26, open ? 7 : 9, dt);
@@ -921,7 +929,7 @@ function DeliveryBox() {
     <>
       <ShadowBlob body={rb} w={BOX.w * s} d={BOX.d * s} strength={1.15} />
       <RigidBody ref={rb} type="fixed" colliders={false} position={[x, 0, z]} rotation={[0, LAYOUT.box.ry, 0]}>
-        <CuboidCollider args={[(BOX.w / 2) * s, ((F + H + BOX.lid) / 2) * s, (BOX.d / 2) * s]} position={[0, ((F + H + BOX.lid) / 2) * s, 0]} friction={1} />
+        <CuboidCollider ref={col} args={[(BOX.w / 2) * s, ((F + H + BOX.lid) / 2) * s, (BOX.d / 2) * s]} position={[0, ((F + H + BOX.lid) / 2) * s, 0]} friction={1} />
         <group scale={s}>
           {/* feet */}
           {[[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([fx, fz]) => (
