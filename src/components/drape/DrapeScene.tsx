@@ -702,6 +702,7 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
 /* ------------------------------------------------------------------ petals */
 
 /** Light rose petal: floats down slowly (low gravity, high drag), can be picked up and tossed like the drapes. */
+const petalDes = new THREE.Vector3(), petalBank = new THREE.Vector3();
 const petalUp = new THREE.Vector3(), petalTorque = new THREE.Vector3(), petalWorldUp = new THREE.Vector3(0, 1, 0), petalQ = new THREE.Quaternion();
 
 function Petal({ i, at }: { i: number; at: { x: number; z: number; k: number } }) {
@@ -761,8 +762,21 @@ function Petal({ i, at }: { i: number; at: { x: number; z: number; k: number } }
     const air = THREE.MathUtils.smoothstep(y, 0.05, 0.4);   // flutter fades out as it touches down instead of cutting off
     if (air <= 0) return;
     const t = state.clock.elapsedTime + i * 1.3;
-    b.applyImpulse({ x: Math.sin(t * 1.7) * 0.9 * air * m * dt, y: 0, z: Math.cos(t * 1.3) * 0.7 * air * m * dt }, true);
-    b.applyTorqueImpulse({ x: Math.sin(t * 2.1) * 0.004 * air * m * dt, y: 0, z: Math.cos(t * 1.9) * 0.004 * air * m * dt }, true);
+    // Falling-leaf swing: a steady left–right sway along a per-petal heading (≈ 1 full swing every 1.9 s) …
+    const swing = Math.sin(t * 3.3);
+    const ang = i * 1.9 + Math.sin(t * 0.21) * 0.6;
+    const ax = Math.cos(ang), az = Math.sin(ang);
+    b.applyImpulse({
+      x: (ax * swing * 7 + Math.sin(t * 1.3) * 0.3) * air * m * dt,
+      y: 0,
+      z: (az * swing * 7 + Math.cos(t * 1.1) * 0.3) * air * m * dt
+    }, true);
+    // … and it banks into each swing: its face tips toward the side it is gliding to, then back and over to the other.
+    const lv = b.linvel();
+    const lat = THREE.MathUtils.clamp((lv.x * ax + lv.z * az) * 0.9, -0.55, 0.55);
+    petalDes.set(ax * lat, 1, az * lat).normalize();
+    petalBank.crossVectors(petalUp, petalDes);
+    b.applyTorqueImpulse({ x: petalBank.x * 4.5 * air * m * dt, y: petalBank.y * 4.5 * air * m * dt, z: petalBank.z * 4.5 * air * m * dt }, true);
   });
   return (
     <>
