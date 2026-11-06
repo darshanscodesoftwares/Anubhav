@@ -447,7 +447,7 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
   // where the bundle was grabbed, in its own frame (-1..1 across width x and depth z)
   const grab = useRef(new THREE.Vector2());
   const tilt = useRef({ x: 0, vx: 0, z: 0, vz: 0 });
-  const st = useRef({ prev: new THREE.Vector3(), lag: new THREE.Vector3(), lagV: new THREE.Vector3(), ripple: 0, slump: 0, slumpV: 0, prevVy: 0, hold: 0, holdV: 0, gusted: false, drape: 0, drapeV: 0, leanX: 0, leanZ: 0 });
+  const st = useRef({ prev: new THREE.Vector3(), lag: new THREE.Vector3(), lagV: new THREE.Vector3(), ripple: 0, slump: 0, slumpV: 0, prevVy: 0, hold: 0, holdV: 0, gusted: false, drape: 0, drapeV: 0 });
   const tmp = useMemo(() => ({ v: new THREE.Vector3(), a: new THREE.Vector3(), q: new THREE.Quaternion(), qd: new THREE.Quaternion(), e: new THREE.Euler() }), []);
   useFrame((state, dtRaw) => {
     const body = rb.current;
@@ -548,12 +548,10 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
       const t = state.clock.elapsedTime;
       // edge pickups: the grabbed side lifts a little toward the hand (x-rot lifts −z… so negate z)
       const gx = grab.current.x * S.hold, gz = grab.current.y * S.hold;
-      // lean over the lower bundle's edge (world → my frame); +x-rot drops +z, −z-rot drops +x
-      const lnx = S.leanX * cy - S.leanZ * sy, lnz = S.leanX * sy + S.leanZ * cy;
-      const tx = hovering.current ? 0.32 + 0.06 * Math.sin(t * 0.9 + index) : THREE.MathUtils.clamp(lvz * 0.045 - gz * 0.16 - lnz * 0.12, -0.24, 0.24);
-      const tz = hovering.current ? -0.14 + 0.05 * Math.sin(t * 0.7 + index) : THREE.MathUtils.clamp(-lvx * 0.045 + gx * 0.22 + lnx * 0.12, -0.24, 0.24);
-      [T.x, T.vx] = springStep(T.x, T.vx, tx, 45, 12.5, dt);
-      [T.z, T.vz] = springStep(T.z, T.vz, tz, 45, 12.5, dt);
+      const tx = hovering.current ? 0.32 + 0.06 * Math.sin(t * 0.9 + index) : THREE.MathUtils.clamp(lvz * 0.045 - gz * 0.16, -0.38, 0.38);
+      const tz = hovering.current ? -0.14 + 0.05 * Math.sin(t * 0.7 + index) : THREE.MathUtils.clamp(-lvx * 0.045 + gx * 0.22, -0.38, 0.38);
+      [T.x, T.vx] = springStep(T.x, T.vx, tx, 45, 8, dt);
+      [T.z, T.vz] = springStep(T.z, T.vz, tz, 45, 8, dt);
       // held: a faint tremble + slow sway that grow with how hard the hand moves it (the 2D arcs echo this)
       const shake = S.hold * Math.min(1, Math.hypot(lv.x, lv.z) / 5);
       const vib = 0; // (the 2D arcs now pulse instead of trembling)
@@ -604,7 +602,7 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
     U.uHold.value = S.hold;
 
     // Resting on another bundle? Find the one underneath and let the overhang sag around its edge.
-    let support: { sx: number; sz: number; dyaw: number; px: number; pz: number; lx: number; lz: number } | null = null;
+    let support: { sx: number; sz: number; dyaw: number; px: number; pz: number } | null = null;
     if (!hovering.current && !held && lv.y > -1.5) {
       const ap = body.translation();
       const ay = tmp.e.setFromQuaternion(tmp.q.set(r.x, r.y, r.z, r.w), 'YXZ').y;
@@ -623,19 +621,12 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
         if (Math.abs(mx) > half.x * 1.9 * s || Math.abs(mz) > half.z * 1.9 * s) return;
         // centre of mass past the lower bundle's edge → it can't balance there and slides off (physics stays yaw-locked,
         // so this is a push away from the ledge instead of a tip-over)
-        const ox = Math.sign(mx) * Math.max(0, Math.abs(mx) - half.x * s * 1.2);
-        const oz = Math.sign(mz) * Math.max(0, Math.abs(mz) - half.z * s * 1.2);
-        // resting on an edge: once my centre is past ~55 % of the lower bundle's half-extent I lean out over it
-        // (visual tilt only — the body stays flat and yaw-locked), more the further I overhang
-        const lox = Math.sign(mx) * Math.max(0, Math.abs(mx) - half.x * s * 0.55);
-        const loz = Math.sign(mz) * Math.max(0, Math.abs(mz) - half.z * s * 0.55);
-        support = { sx: (wx * ca - wz * sa) / s, sz: (wx * sa + wz * ca) / s, dyaw: by - ay, px: ox * cb - oz * sb, pz: ox * sb + oz * cb, lx: lox * cb - loz * sb, lz: lox * sb + loz * cb };
+        const ox = Math.sign(mx) * Math.max(0, Math.abs(mx) - half.x * s * 1.55);
+        const oz = Math.sign(mz) * Math.max(0, Math.abs(mz) - half.z * s * 1.55);
+        support = { sx: (wx * ca - wz * sa) / s, sz: (wx * sa + wz * ca) / s, dyaw: by - ay, px: ox * cb - oz * sb, pz: ox * sb + oz * cb };
       });
     }
-    const sup = support as { sx: number; sz: number; dyaw: number; px: number; pz: number; lx: number; lz: number } | null;
-    // world-space lean direction (lower bundle → me), eased so it never jumps when the support is found / lost
-    S.leanX += ((sup ? -sup.lx : 0) - S.leanX) * 0.12;
-    S.leanZ += ((sup ? -sup.lz : 0) - S.leanZ) * 0.12;
+    const sup = support as { sx: number; sz: number; dyaw: number; px: number; pz: number } | null;
     if (sup) {
       U.uSup.value.set(sup.sx, sup.sz, half.x, half.z);
       U.uSupRot.value.set(Math.cos(sup.dyaw), Math.sin(sup.dyaw));

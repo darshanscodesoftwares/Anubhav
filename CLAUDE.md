@@ -314,6 +314,7 @@ Owner request: append an entry here after every change session.
 - **2026‑11‑06** — Owner: edge-rest tilt "slightly less". Lean gain 0.3 → 0.2 and the tilt clamp ±0.5 → ±0.34 rad (≈ 19° max) in `Bundle`'s tilt targets.
 - **2026‑11‑06** — Owner: "activate edge slide off too" (alongside the new edge lean). Slide-off threshold 1.55 → 1.2 × half-extent (≈ 1.32 units for the 2.2-wide bundles); ramp/push unchanged (0.2·s ramp, 20 m/s²). Teleport test (yellow on black, centre offset in world units): 1.1 and 1.25 → rests on top, leaning; 1.4 → slides off and lands beside. So a saree now leans from 0.55 and slides once its centre is ≈ 1.3 units past the lower one's centre. Tune the `1.2` in the ledge code of `DrapeScene.tsx`.
 - **2026‑11‑06** — Owner: lower the edge tilt more, and the edge "bounce". Lean gain 0.2 → 0.12 and clamp ±0.34 → ±0.24 rad (≈ 14° max); the tilt spring (k 45) is now close to critically damped (c 8 → 12.5; critical ≈ 13.4) so the lean, and the velocity lean on all bundles, settle without overshoot/wobble. Tune in `Bundle`'s tilt block.
+- **2026‑11‑06** — Owner: revert the edge-rest tilt and its follow-ups. `DrapeScene.tsx` restored to `6213556` (before `1fe79b5`, `d1955ac`, `ef1e098`, `303b15a`): no lean on bundles resting on another bundle, slide-off threshold back to 1.55 × half-extent, tilt spring back to c 8 / old velocity-lean clamp ±0.38. Those four entries above describe code that is no longer in use (still in git history).
 
 ## Next / ideas
 
