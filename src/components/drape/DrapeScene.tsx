@@ -767,16 +767,16 @@ function Petal({ i, at }: { i: number; at: { x: number; z: number; k: number } }
     const ang = i * 1.9 + Math.sin(t * 0.21) * 0.6;
     const ax = Math.cos(ang), az = Math.sin(ang);
     b.applyImpulse({
-      x: (ax * swing * 7 + Math.sin(t * 1.3) * 0.3) * air * m * dt,
+      x: (ax * swing * 4.2 + Math.sin(t * 1.3) * 0.3) * air * m * dt,
       y: 0,
-      z: (az * swing * 7 + Math.cos(t * 1.1) * 0.3) * air * m * dt
+      z: (az * swing * 4.2 + Math.cos(t * 1.1) * 0.3) * air * m * dt
     }, true);
     // … and it banks into each swing: its face tips toward the side it is gliding to, then back and over to the other.
     const lv = b.linvel();
-    const lat = THREE.MathUtils.clamp((lv.x * ax + lv.z * az) * 0.9, -0.55, 0.55);
+    const lat = THREE.MathUtils.clamp((lv.x * ax + lv.z * az) * 0.6, -0.35, 0.35);
     petalDes.set(ax * lat, 1, az * lat).normalize();
     petalBank.crossVectors(petalUp, petalDes);
-    b.applyTorqueImpulse({ x: petalBank.x * 4.5 * air * m * dt, y: petalBank.y * 4.5 * air * m * dt, z: petalBank.z * 4.5 * air * m * dt }, true);
+    b.applyTorqueImpulse({ x: petalBank.x * 3 * air * m * dt, y: petalBank.y * 3 * air * m * dt, z: petalBank.z * 3 * air * m * dt }, true);
   });
   return (
     <>
