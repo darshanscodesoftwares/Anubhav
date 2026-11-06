@@ -550,8 +550,8 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
       const gx = grab.current.x * S.hold, gz = grab.current.y * S.hold;
       // lean over the lower bundle's edge (world → my frame); +x-rot drops +z, −z-rot drops +x
       const lnx = S.leanX * cy - S.leanZ * sy, lnz = S.leanX * sy + S.leanZ * cy;
-      const tx = hovering.current ? 0.32 + 0.06 * Math.sin(t * 0.9 + index) : THREE.MathUtils.clamp(lvz * 0.045 - gz * 0.16 - lnz * 0.3, -0.5, 0.5);
-      const tz = hovering.current ? -0.14 + 0.05 * Math.sin(t * 0.7 + index) : THREE.MathUtils.clamp(-lvx * 0.045 + gx * 0.22 + lnx * 0.3, -0.5, 0.5);
+      const tx = hovering.current ? 0.32 + 0.06 * Math.sin(t * 0.9 + index) : THREE.MathUtils.clamp(lvz * 0.045 - gz * 0.16 - lnz * 0.2, -0.34, 0.34);
+      const tz = hovering.current ? -0.14 + 0.05 * Math.sin(t * 0.7 + index) : THREE.MathUtils.clamp(-lvx * 0.045 + gx * 0.22 + lnx * 0.2, -0.34, 0.34);
       [T.x, T.vx] = springStep(T.x, T.vx, tx, 45, 8, dt);
       [T.z, T.vz] = springStep(T.z, T.vz, tz, 45, 8, dt);
       // held: a faint tremble + slow sway that grow with how hard the hand moves it (the 2D arcs echo this)
