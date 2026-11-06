@@ -70,17 +70,17 @@ const LAYOUT = {
     { id: 'maroon', x: 0.1, z: 0.11, ry: 0.35 },
     { id: 'ivory', x: -0.29, z: -0.04, ry: -0.25 },
     { id: 'navy', x: 0.55, z: -0.3, ry: 0.2 },
-    { id: 'black', x: -0.2, z: 0.68, ry: 0.18 },
+    { id: 'black', x: -0.04, z: 0.72, ry: 0.18 },
     { id: 'yellow', x: 0.3, z: 0.42, ry: -0.12 }
   ] as const,
   // rose petals fitted to the owner's screenshot (they fall from above onto these spots); the first 6 are used on small screens
   petal: [
     { x: -0.66, z: -0.3, k: 1.2 }, { x: 0.92, z: -0.42, k: 1.35 }, { x: -0.54, z: 0.4, k: 0.62 }, { x: -0.02, z: 0.58, k: 0.95 },
-    { x: 0.3, z: -0.42, k: 1.25 }, { x: -0.47, z: 0.88, k: 0.58 }, { x: -0.76, z: 0.31, k: 0.9 }, { x: -0.14, z: 0.3, k: 1.3 },
+    { x: 0.3, z: -0.42, k: 1.25 }, { x: 0.15, z: 0.92, k: 0.58 }, { x: -0.76, z: 0.31, k: 0.9 }, { x: -0.14, z: 0.3, k: 1.3 },
     { x: 0.09, z: 0.61, k: 0.66 }, { x: 0.81, z: 0.85, k: 0.85 }, { x: 0.36, z: 0.95, k: 1.15 }
   ],
   /** the carved wooden delivery box, fixed on the right-hand side */
-  box: { x: 0.63, z: 0.14, ry: -0.22 }
+  box: { x: -0.4, z: 0.9, ry: 2.3 }
 };
 
 /* ------------------------------------------------------------------ soft contact shadows */
@@ -524,7 +524,8 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
           // springs up out of the box in an arc toward the open floor, unfolding back to size
           A.t = Math.min(1, A.t + dt / 1.05);
           const e = 1 - (1 - A.t) ** 3;
-          const tx = B.x - 2.1 * s, tz = B.z - 0.35 * s, ty = (0.85) * s;
+          const ox = ctx.bounds.cx - B.x, oz = ctx.bounds.cz - B.z, ol = Math.hypot(ox, oz) || 1;
+          const tx = B.x + (ox / ol) * 2.3 * s, tz = B.z + (oz / ol) * 2.3 * s, ty = 0.85 * s;
           tmp.v.set(B.x + (tx - B.x) * e, B.deep + (ty - B.deep) * e + Math.sin(Math.PI * Math.min(1, A.t * 1.1)) * 1.1 * s, B.z + (tz - B.z) * e);
           body.setNextKinematicTranslation(tmp.v);
           sc?.scale.setScalar(0.24 + 0.76 * e);
@@ -532,7 +533,7 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
             A.mode = 'none';
             sc?.scale.setScalar(1);
             body.setBodyType(0, true); // dynamic again
-            body.setLinvel({ x: -0.6 * s, y: 0, z: -0.15 * s }, true);
+            body.setLinvel({ x: (ox / ol) * 0.6 * s, y: 0, z: (oz / ol) * 0.6 * s }, true);
             hoverAt.current = { x: tx, z: tz };
             hovering.current = true; // floats where it landed
             B.occupant = null; B.phase = 'idle';
@@ -808,9 +809,12 @@ function BandRing({ geo, material, y, w = BOX.w, d = BOX.d }: { geo: { bandX: TH
   );
 }
 
+/** overall size of the box relative to its modelled dimensions */
+const BOX_K = 0.84;
+
 function DeliveryBox() {
   const ctx = useContext(SceneCtx);
-  const s = ctx.bounds.s;
+  const s = ctx.bounds.s * BOX_K;
   const rb = useRef<RapierRigidBody>(null);
   const lid = useRef<THREE.Group>(null);
   const L = useRef({ a: 0, v: 0 });
@@ -835,7 +839,7 @@ function DeliveryBox() {
     B.x = x; B.z = z;
     B.top = (BOX.foot + BOX.h + BOX.lid + BOX.dome) * s;
     B.deep = (BOX.foot + BOX.h * 0.45) * s;
-    B.reach = 1.7 * s;
+    B.reach = 1.7 * ctx.bounds.s;
   }, [ctx, x, z, s]);
 
   useFrame((_, dtRaw) => {
@@ -875,7 +879,7 @@ function DeliveryBox() {
             <BandRing geo={geo} material={M.brass} y={-H / 2 + 0.07} />
             <BandRing geo={geo} material={M.brass} y={H / 2 - 0.05} />
             {/* velvet lining on the floor inside */}
-            <mesh geometry={geo.lining} material={M.velvet} position={[0, -H / 2 + 0.06, 0]} />
+            <mesh geometry={geo.lining} material={M.velvet} position={[0, -H / 2 + 0.085, 0]} />
             <mesh geometry={geo.plate} material={M.brass} position={[0, H / 2 - 0.17, BOX.d / 2 + 0.012]} />
             <mesh geometry={geo.ring} material={M.brass} position={[0, H / 2 - 0.3, BOX.d / 2 + 0.03]} />
             {[-1, 1].map(sx => (

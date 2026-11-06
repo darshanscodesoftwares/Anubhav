@@ -142,7 +142,7 @@ function build() {
     new THREE.MeshPhysicalMaterial({ map, bumpMap: map, bumpScale: 2.2, roughness: 0.5, clearcoat: 0.35, clearcoatRoughness: 0.4, envMapIntensity: 0.55 });
   const brass = new THREE.MeshStandardMaterial({ color: '#c39a4c', metalness: 1, roughness: 0.32, envMapIntensity: 1.1 });
   const interior = new THREE.MeshStandardMaterial({ color: '#2a140a', roughness: 0.9, side: THREE.BackSide });
-  const velvet = new THREE.MeshStandardMaterial({ color: '#6b1424', roughness: 0.95 });
+  const velvet = new THREE.MeshStandardMaterial({ color: '#6b1424', roughness: 0.95, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   const hidden = new THREE.MeshBasicMaterial({ visible: false });
   return {
     // BoxGeometry face order: +x, −x, +y (open top → hidden), −y, +z (front), −z (back)
