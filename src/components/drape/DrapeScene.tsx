@@ -442,6 +442,11 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
   const scaleRef = useRef<THREE.Group>(null);
   const absorb = useRef({ mode: 'none' as 'none' | 'pull' | 'inside' | 'spit', t: 0, from: new THREE.Vector3(), yaw0: 0 });
   const wasHeld = useRef(false);
+  // While the box draws the saree in (and lets it out), the part of the cloth that is below the box's rim *and* close to
+  // the box is clipped away: it can never show through the walls, and it simply disappears into the mouth.
+  // clipIntersection: clipped only where a fragment is on the negative side of ALL planes (below the rim AND inside the
+  // rectangle around the box).
+  const clip = useMemo(() => ({ planes: [0, 1, 2, 3, 4].map(() => new THREE.Plane()), on: false }), []);
   const entry = useRef<Entry | null>(null);
   useEffect(() => {
     if (!rb.current) return;
@@ -504,6 +509,22 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
         const fitXZ = 0.52, fitY = 0.72;
         const restY = (BOX.foot + 0.1) * s * BOX_K + half.y * s * fitY;
         U.uTime.value = state.clock.elapsedTime;
+        const setClip = (on: boolean, rimY = 0) => {
+          if (on) {
+            const sb = s * BOX_K, m = 1.15 * s;
+            const hx = (BOX.w / 2) * sb + m, hz = (BOX.d / 2) * sb + m;
+            const ry = LAYOUT.box.ry, ax = new THREE.Vector3(Math.cos(ry), 0, -Math.sin(ry)), az = new THREE.Vector3(Math.sin(ry), 0, Math.cos(ry));
+            const c = new THREE.Vector3(B.x, 0, B.z);
+            clip.planes[0].set(new THREE.Vector3(0, 1, 0), -rimY);
+            const sides: [THREE.Vector3, number][] = [[ax, hx], [ax.clone().negate(), hx], [az, hz], [az.clone().negate(), hz]];
+            sides.forEach(([n, h], i) => clip.planes[i + 1].set(n, -n.dot(c) - h));
+          }
+          if (on !== clip.on) {
+            clip.on = on;
+            for (const m of materials) { m.clippingPlanes = on ? clip.planes : null; m.clipIntersection = true; m.needsUpdate = true; }
+          }
+        };
+        const rim = (BOX.foot + BOX.h) * s * BOX_K;
         if (A.mode === 'pull') {
           // Modelled on the owner's reference GIF (9 frames): it hovers, bends into an S as its leading end tips toward
           // the box, slides in leading-end first as a stretched, rippling streak, then settles folded inside.
@@ -524,6 +545,8 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
           // settle: drop through the mouth onto the velvet with a small give
           cy += (restY - mouthY) * settle - Math.sin(Math.PI * settle) * 0.05 * s;
           cx += (B.x - cx) * settle; cz += (B.z - cz) * settle;
+          // clip from when it starts pouring; during the settle the clip line sinks below the velvet so it's revealed inside
+          setClip(t > 0.4, rim - (rim + 0.2 * s) * sm(t, 0.86, 1));
           body.setNextKinematicTranslation(tmp.v.set(cx, cy, cz));
           const yawIn = A.yaw0 + dyaw * align;
           let dfin = LAYOUT.box.ry - yawIn; dfin = Math.atan2(Math.sin(dfin), Math.cos(dfin));
@@ -546,6 +569,7 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
           }
           if (A.t >= 1) {
             A.mode = 'inside';
+            setClip(false);
             U.uBend.value = 0; U.uLag.value.set(0, 0, 0);
             sc?.position.set(0, 0, 0);
             B.phase = 'inside';
@@ -563,6 +587,7 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
           // lifts out of the box and arcs onto the open floor, unfolding back to full size
           A.t = Math.min(1, A.t + dt / 1.15);
           const e = 1 - (1 - A.t) ** 3;
+          setClip(A.t < 0.55, rim);
           const ox = ctx.bounds.cx - B.x, oz = ctx.bounds.cz - B.z, ol = Math.hypot(ox, oz) || 1;
           const tx = B.x + (ox / ol) * 3.4 * s, tz = B.z + (oz / ol) * 3.4 * s, ty = 0.85 * s;
           tmp.v.set(B.x + (tx - B.x) * e, restY + (ty - restY) * e + Math.sin(Math.PI * Math.min(1, A.t * 1.1)) * 1.1 * s, B.z + (tz - B.z) * e);
@@ -1284,6 +1309,7 @@ export default function DrapeScene(props: DrapeSceneProps) {
       gl={{ antialias: true, alpha: true, powerPreference: 'high-performance', toneMapping: THREE.NeutralToneMapping }}
       style={{ touchAction: 'pan-y' }}
       onCreated={({ gl }) => {
+        gl.localClippingEnabled = true;
         gl.domElement.addEventListener('webglcontextlost', e => {
           e.preventDefault();
           props.onContextLost?.();
