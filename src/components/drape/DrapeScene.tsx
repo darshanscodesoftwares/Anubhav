@@ -12,6 +12,7 @@ import {
 import { SAREES, type Saree, type Tag } from './data';
 import { applyFabricDeform, makeBundleGeometry, makeFabricUniforms, springStep } from './fabric';
 import { petalMaterial, usePetalGeometry } from './models';
+import { BOX, boxMaterials, domeGeometry } from './box';
 
 
 export interface DrapeSceneProps {
@@ -21,6 +22,19 @@ export interface DrapeSceneProps {
   filter: Tag | null;
   /** DOM overlay (two arc groups) the scene drives while a saree is held — 2D 'tension arcs' */
   arcs?: React.RefObject<HTMLDivElement | null>;
+  /** a saree was released over the wooden box and has been pulled inside → show it (the popup) */
+  onBoxOpen?: (id: Saree['id']) => void;
+  /** the scene puts `spit()` here: call it when the popup closes to send the saree back out, floating */
+  boxApi?: React.RefObject<{ spit?: () => void }>;
+}
+
+/** Shared state of the fixed wooden box (world units). */
+interface BoxState {
+  x: number; z: number; top: number; deep: number; reach: number;
+  /** the dragged saree is close enough → the lid opens */
+  near: boolean;
+  occupant: Saree['id'] | null;
+  phase: 'idle' | 'pull' | 'inside' | 'spit';
 }
 
 interface Entry {
@@ -45,6 +59,8 @@ interface Ctx {
   cursor: React.RefObject<{ x: number; z: number; vx: number; vz: number; on: boolean }>;
   /** puff of air from (x, z): nearby petals blow outward and up like feathers */
   gust: (x: number, z: number, radius: number, power: number) => void;
+  box: React.RefObject<BoxState>;
+  onBoxOpen: (id: Saree['id']) => void;
 }
 const SceneCtx = createContext<Ctx>(null!);
 
@@ -53,16 +69,18 @@ const LAYOUT = {
   saree: [
     { id: 'maroon', x: 0.1, z: 0.11, ry: 0.35 },
     { id: 'ivory', x: -0.29, z: -0.04, ry: -0.25 },
-    { id: 'navy', x: 0.55, z: -0.18, ry: 0.2 },
+    { id: 'navy', x: 0.55, z: -0.3, ry: 0.2 },
     { id: 'black', x: -0.2, z: 0.68, ry: 0.18 },
-    { id: 'yellow', x: 0.38, z: 0.42, ry: -0.12 }
+    { id: 'yellow', x: 0.3, z: 0.42, ry: -0.12 }
   ] as const,
   // rose petals fitted to the owner's screenshot (they fall from above onto these spots); the first 6 are used on small screens
   petal: [
-    { x: -0.66, z: -0.3, k: 1.2 }, { x: 0.76, z: 0.21, k: 1.35 }, { x: -0.54, z: 0.4, k: 0.62 }, { x: -0.02, z: 0.58, k: 0.95 },
+    { x: -0.66, z: -0.3, k: 1.2 }, { x: 0.92, z: -0.42, k: 1.35 }, { x: -0.54, z: 0.4, k: 0.62 }, { x: -0.02, z: 0.58, k: 0.95 },
     { x: 0.3, z: -0.42, k: 1.25 }, { x: -0.47, z: 0.88, k: 0.58 }, { x: -0.76, z: 0.31, k: 0.9 }, { x: -0.14, z: 0.3, k: 1.3 },
     { x: 0.09, z: 0.61, k: 0.66 }, { x: 0.81, z: 0.85, k: 0.85 }, { x: 0.36, z: 0.95, k: 1.15 }
-  ]
+  ],
+  /** the carved wooden delivery box, fixed on the right-hand side */
+  box: { x: 0.63, z: 0.14, ry: -0.22 }
 };
 
 /* ------------------------------------------------------------------ soft contact shadows */
@@ -414,6 +432,11 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
   const hovering = useRef(float);
   // where it levitates: the top-row sarees return to their start; a double-clicked one stays where it was lifted
   const hoverAt = useRef({ x: init.p.x, z: init.p.z });
+  // the wooden box: released over it → pulled in (kinematic), hidden while inside, spat back out floating
+  const [inBox, setInBox] = useState(false);
+  const scaleRef = useRef<THREE.Group>(null);
+  const absorb = useRef({ mode: 'none' as 'none' | 'pull' | 'inside' | 'spit', t: 0, from: new THREE.Vector3(), yaw0: 0 });
+  const wasHeld = useRef(false);
   const entry = useRef<Entry | null>(null);
   useEffect(() => {
     if (!rb.current) return;
@@ -453,6 +476,71 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
     const body = rb.current;
     if (!body) return;
     const dt = Math.min(dtRaw, 1 / 30);
+    {
+      const B = ctx.box.current, A = absorb.current;
+      const heldNow = ctx.dragging.current?.key === saree.id;
+      // let go over the open box → it takes the saree
+      if (wasHeld.current && !heldNow && A.mode === 'none' && !B.occupant) {
+        const p = body.translation();
+        if (Math.hypot(p.x - B.x, p.z - B.z) < B.reach) {
+          const r = body.rotation();
+          A.mode = 'pull'; A.t = 0; A.from.set(p.x, p.y, p.z);
+          A.yaw0 = tmp.e.setFromQuaternion(tmp.q.set(r.x, r.y, r.z, r.w), 'YXZ').y;
+          B.occupant = saree.id; B.phase = 'pull';
+          hovering.current = false;
+          body.setBodyType(2, true); // kinematic (position-based) while the box draws it in
+        }
+      }
+      wasHeld.current = heldNow;
+      if (A.mode !== 'none') {
+        const sc = scaleRef.current;
+        const ease = (x: number) => x * x * (3 - 2 * x);
+        if (A.mode === 'pull') {
+          // lifted over the mouth of the box, then drawn down inside while it shrinks and turns square to the box
+          A.t = Math.min(1, A.t + dt / 1.25);
+          const e1 = ease(Math.min(1, A.t / 0.55)), e2 = ease(THREE.MathUtils.clamp((A.t - 0.4) / 0.6, 0, 1));
+          const mx = A.from.x + (B.x - A.from.x) * e1, mz = A.from.z + (B.z - A.from.z) * e1;
+          const my = A.from.y + (B.top + 0.75 * s - A.from.y) * e1;
+          tmp.v.set(mx, my + (B.deep - my) * e2, mz);
+          body.setNextKinematicTranslation(tmp.v);
+          const yaw = A.yaw0 + (LAYOUT.box.ry - A.yaw0) * e1;
+          body.setNextKinematicRotation(tmp.q.setFromEuler(tmp.e.set(0, yaw, 0)));
+          sc?.scale.setScalar(1 - 0.08 * e1 - 0.68 * e2);
+          if (A.t >= 1) {
+            A.mode = 'inside';
+            body.setEnabled(false);
+            B.phase = 'inside';
+            setInBox(true);
+            globalThis.setTimeout(() => ctx.onBoxOpen(saree.id), 380);
+          }
+        } else if (A.mode === 'inside') {
+          if (B.phase === 'spit' && B.occupant === saree.id) {
+            A.mode = 'spit'; A.t = 0;
+            body.setEnabled(true);
+            body.setNextKinematicTranslation(tmp.v.set(B.x, B.deep, B.z));
+            setInBox(false);
+          }
+        } else if (A.mode === 'spit') {
+          // springs up out of the box in an arc toward the open floor, unfolding back to size
+          A.t = Math.min(1, A.t + dt / 1.05);
+          const e = 1 - (1 - A.t) ** 3;
+          const tx = B.x - 2.1 * s, tz = B.z - 0.35 * s, ty = (0.85) * s;
+          tmp.v.set(B.x + (tx - B.x) * e, B.deep + (ty - B.deep) * e + Math.sin(Math.PI * Math.min(1, A.t * 1.1)) * 1.1 * s, B.z + (tz - B.z) * e);
+          body.setNextKinematicTranslation(tmp.v);
+          sc?.scale.setScalar(0.24 + 0.76 * e);
+          if (A.t >= 1) {
+            A.mode = 'none';
+            sc?.scale.setScalar(1);
+            body.setBodyType(0, true); // dynamic again
+            body.setLinvel({ x: -0.6 * s, y: 0, z: -0.15 * s }, true);
+            hoverAt.current = { x: tx, z: tz };
+            hovering.current = true; // floats where it landed
+            B.occupant = null; B.phase = 'idle';
+          }
+        }
+        return;
+      }
+    }
     if (hovering.current) {
       const t = state.clock.elapsedTime;
       // Levitation under real gravity: a soft spring force balances the bundle's weight and holds it near its
@@ -645,7 +733,7 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
 
   return (
     <>
-    <ShadowBlob body={rb} w={BUNDLE.w * s} d={BUNDLE.d * s} strength={dim ? 0.22 : 1} />
+    <ShadowBlob body={rb} w={BUNDLE.w * s} d={BUNDLE.d * s} strength={inBox ? 0 : dim ? 0.22 : 1} />
     <RigidBody
       ref={rb}
       colliders={false}
@@ -665,6 +753,7 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
         friction={1.25}
         restitution={0.04}
       />
+      <group ref={scaleRef} visible={!inBox}>
       <group ref={tiltRef}>
       <mesh
         geometry={geometry}
@@ -694,7 +783,116 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
         onPointerOut={() => !ctx.dragging.current && (document.body.style.cursor = '')}
       />
       </group>
+      </group>
     </RigidBody>
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------ wooden delivery box */
+
+/**
+ * A carved rosewood chest fixed on the floor. Carry a saree over it and the lid swings open; let go and the box draws
+ * the saree inside (see Bundle), the lid closes and the section shows the saree on its model. Closing that popup makes
+ * the lid open again and the box spits the saree back out, floating.
+ */
+/** An open brass band around the box at height y (four thin bars, so nothing covers the opening). */
+function BandRing({ geo, material, y, w = BOX.w, d = BOX.d }: { geo: { bandX: THREE.BufferGeometry; bandZ: THREE.BufferGeometry }; material: THREE.Material; y: number; w?: number; d?: number }) {
+  return (
+    <>
+      <mesh geometry={geo.bandX} material={material} position={[0, y, d / 2]} />
+      <mesh geometry={geo.bandX} material={material} position={[0, y, -d / 2]} />
+      <mesh geometry={geo.bandZ} material={material} position={[w / 2, y, 0]} />
+      <mesh geometry={geo.bandZ} material={material} position={[-w / 2, y, 0]} />
+    </>
+  );
+}
+
+function DeliveryBox() {
+  const ctx = useContext(SceneCtx);
+  const s = ctx.bounds.s;
+  const rb = useRef<RapierRigidBody>(null);
+  const lid = useRef<THREE.Group>(null);
+  const L = useRef({ a: 0, v: 0 });
+  const M = useMemo(() => boxMaterials(), []);
+  const geo = useMemo(() => ({
+    body: new THREE.BoxGeometry(BOX.w, BOX.h, BOX.d),
+    inner: new THREE.BoxGeometry(BOX.w - 0.1, BOX.h - 0.06, BOX.d - 0.1),
+    lidBase: new THREE.BoxGeometry(BOX.w + 0.04, BOX.lid, BOX.d + 0.04),
+    dome: domeGeometry(BOX.w + 0.02, BOX.d + 0.02, BOX.dome),
+    bandX: new THREE.BoxGeometry(BOX.w + 0.03, 0.045, 0.03),
+    bandZ: new THREE.BoxGeometry(0.03, 0.045, BOX.d + 0.03),
+    lining: new THREE.PlaneGeometry(BOX.w - 0.12, BOX.d - 0.12).rotateX(-Math.PI / 2),
+    post: new THREE.BoxGeometry(0.075, BOX.h + 0.01, 0.075),
+    plate: new THREE.BoxGeometry(0.17, 0.22, 0.02),
+    ring: new THREE.TorusGeometry(0.075, 0.014, 10, 28),
+    foot: new THREE.CylinderGeometry(0.07, 0.085, BOX.foot, 16)
+  }), []);
+  const x = ctx.bounds.cx + LAYOUT.box.x * ctx.bounds.hx, z = ctx.bounds.cz + LAYOUT.box.z * ctx.bounds.hz;
+
+  useEffect(() => {
+    const B = ctx.box.current;
+    B.x = x; B.z = z;
+    B.top = (BOX.foot + BOX.h + BOX.lid + BOX.dome) * s;
+    B.deep = (BOX.foot + BOX.h * 0.45) * s;
+    B.reach = 1.7 * s;
+  }, [ctx, x, z, s]);
+
+  useFrame((_, dtRaw) => {
+    const dt = Math.min(dtRaw, 1 / 30);
+    const B = ctx.box.current, d = ctx.dragging.current;
+    let near = false;
+    if (d?.heavy && !B.occupant) {
+      const p = d.rb.translation();
+      near = Math.hypot(p.x - B.x, p.z - B.z) < B.reach;
+    }
+    B.near = near;
+    const open = near || B.phase === 'pull' || B.phase === 'spit' ? 1 : 0;
+    // a soft hinge spring: swings open with a little settle, closes gently
+    [L.current.a, L.current.v] = springStep(L.current.a, L.current.v, open, open ? 34 : 26, open ? 7 : 9, dt);
+    if (lid.current) lid.current.rotation.x = -Math.max(0, L.current.a) * 1.85;
+  });
+
+  const H = BOX.h, F = BOX.foot;
+  return (
+    <>
+      <ShadowBlob body={rb} w={BOX.w * s} d={BOX.d * s} strength={1.15} />
+      <RigidBody ref={rb} type="fixed" colliders={false} position={[x, 0, z]} rotation={[0, LAYOUT.box.ry, 0]}>
+        <CuboidCollider args={[(BOX.w / 2) * s, ((F + H + BOX.lid) / 2) * s, (BOX.d / 2) * s]} position={[0, ((F + H + BOX.lid) / 2) * s, 0]} friction={1} />
+        <group scale={s}>
+          {/* feet */}
+          {[[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([fx, fz]) => (
+            <mesh key={`${fx}${fz}`} geometry={geo.foot} material={M.plain} position={[fx * (BOX.w / 2 - 0.12), F / 2, fz * (BOX.d / 2 - 0.12)]} />
+          ))}
+          <group position={[0, F + H / 2, 0]}>
+            <mesh geometry={geo.body} material={M.body} />
+            {/* dark interior (seen only when the lid is up) */}
+            <mesh geometry={geo.inner} material={M.interior} position={[0, 0.03, 0]} />
+            {/* brass: corner posts, two bands, front lock plate, side ring handles */}
+            {[[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([px, pz]) => (
+              <mesh key={`p${px}${pz}`} geometry={geo.post} material={M.brass} position={[px * BOX.w / 2, 0, pz * BOX.d / 2]} />
+            ))}
+            <BandRing geo={geo} material={M.brass} y={-H / 2 + 0.07} />
+            <BandRing geo={geo} material={M.brass} y={H / 2 - 0.05} />
+            {/* velvet lining on the floor inside */}
+            <mesh geometry={geo.lining} material={M.velvet} position={[0, -H / 2 + 0.06, 0]} />
+            <mesh geometry={geo.plate} material={M.brass} position={[0, H / 2 - 0.17, BOX.d / 2 + 0.012]} />
+            <mesh geometry={geo.ring} material={M.brass} position={[0, H / 2 - 0.3, BOX.d / 2 + 0.03]} />
+            {[-1, 1].map(sx => (
+              <mesh key={`h${sx}`} geometry={geo.ring} material={M.brass} position={[sx * (BOX.w / 2 + 0.02), 0.12, 0]} rotation={[0, Math.PI / 2, 0]} />
+            ))}
+          </group>
+          {/* lid hinged along the back top edge */}
+          <group ref={lid} position={[0, F + H, -BOX.d / 2]}>
+            <group position={[0, 0, BOX.d / 2]}>
+              <mesh geometry={geo.lidBase} material={M.lid} position={[0, BOX.lid / 2, 0]} />
+              <mesh geometry={geo.dome} material={M.lid} position={[0, BOX.lid, 0]} />
+              <BandRing geo={geo} material={M.brass} y={0.02} w={BOX.w + 0.05} d={BOX.d + 0.05} />
+              <mesh geometry={geo.plate} material={M.brass} position={[0, 0.0, BOX.d / 2 + 0.035]} scale={[0.8, 0.7, 1]} />
+            </group>
+          </group>
+        </group>
+      </RigidBody>
     </>
   );
 }
@@ -907,7 +1105,15 @@ function Warm({ ready }: { ready: boolean }) {
 
 /* ------------------------------------------------------------------ scene */
 
-function World({ bounds, filter, arcs }: DrapeSceneProps & { bounds: Bounds }) {
+function World({ bounds, filter, arcs, onBoxOpen, boxApi }: DrapeSceneProps & { bounds: Bounds }) {
+  const box = useRef<BoxState>({ x: 0, z: 0, top: 0, deep: 0, reach: 0, near: false, occupant: null, phase: 'idle' });
+  const openCb = useRef(onBoxOpen);
+  openCb.current = onBoxOpen;
+  const onOpen = useCallback((id: Saree['id']) => openCb.current?.(id), []);
+  useEffect(() => {
+    if (!boxApi) return;
+    boxApi.current.spit = () => { if (box.current.phase === 'inside') box.current.phase = 'spit'; };
+  }, [boxApi]);
   const { startDrag, dragging } = useDragController(bounds);
 
   const petals = useRef(new Map<string, RapierRigidBody>());
@@ -979,9 +1185,11 @@ function World({ bounds, filter, arcs }: DrapeSceneProps & { bounds: Bounds }) {
       gust,
       startDrag,
       dragging,
-      bounds
+      bounds,
+      box,
+      onBoxOpen: onOpen
     }),
-    [bounds, startDrag, dragging, gust]
+    [bounds, startDrag, dragging, gust, onOpen]
   );
 
   // Bring the sarees in one per frame: each one's texture upload is then its own short frame, not a single long stall.
@@ -1001,6 +1209,7 @@ function World({ bounds, filter, arcs }: DrapeSceneProps & { bounds: Bounds }) {
     <SceneCtx.Provider value={ctx}>
       <Warm ready={mounted >= LAYOUT.saree.length} />
       <ActionMarks arcs={arcs} />
+      <DeliveryBox />
       {LAYOUT.saree.map((l, i) => {
         if (i >= mounted) return null;
         const saree = SAREES.find(x => x.id === l.id)!;
