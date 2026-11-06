@@ -296,7 +296,7 @@ function useDragController(bounds: Bounds) {
 
 /** Top row floats mid-toss (like the design board); the bottom two rest on the surface. */
 /** embroidery relief strength per saree (0 = flat) */
-const BUMP: Record<Saree['id'], number> = { maroon: 5, ivory: 1.8, navy: 6, black: 5.5, yellow: 3.2 };
+const BUMP: Record<Saree['id'], number> = { maroon: 7, ivory: 3, navy: 9, black: 8, yellow: 5 };
 const FLOATING: Saree['id'][] = ['ivory', 'maroon', 'navy'];
 
 /** half of the pillow/wrinkle height above the base box (see makeBundleGeometry) */
@@ -324,17 +324,19 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
   const geometry = useMemo(() => bundleGeometry(bh, saree.shape), [bh, saree.shape]);
   const U = useMemo(() => makeFabricUniforms(half), [half]);
   // colour (tinted ground) and roughness/metalness (zari) are pre-baked by scripts/bake-drape-maps.mjs
-  const [topCol, topRm, edgeCol, edgeRm] = useTexture([
+  const [topCol, topRm, edgeCol, edgeRm, topH] = useTexture([
     `/drape/top-${saree.id}-col.webp`,
     `/drape/top-${saree.id}-rm.webp`,
     `/drape/edge-${saree.id}-col.webp`,
-    `/drape/edge-${saree.id}-rm.webp`
+    `/drape/edge-${saree.id}-rm.webp`,
+    `/drape/top-${saree.id}-h.webp`
   ]);
   const maps = useMemo(() => {
     topRm.colorSpace = THREE.NoColorSpace;
     edgeRm.colorSpace = THREE.NoColorSpace;
-    return { top: { colour: topCol, rm: topRm }, edge: { colour: edgeCol, rm: edgeRm } };
-  }, [topCol, topRm, edgeCol, edgeRm]);
+    topH.colorSpace = THREE.NoColorSpace;
+    return { top: { colour: topCol, rm: topRm, h: topH }, edge: { colour: edgeCol, rm: edgeRm, h: edgeCol } };
+  }, [topCol, topRm, edgeCol, edgeRm, topH]);
 
   // Faces that share a UV transform share one texture + one material, so each saree uploads only a few textures to the GPU.
   const materials = useMemo(() => {
@@ -360,14 +362,14 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
       const key = `${src}|${rx}|${ox}|${ry}|${oy}`;
       const cached = matCache.get(key);
       if (cached) return cached;
-      const { colour, rm } = maps[src];
+      const { colour, rm, h } = maps[src];
       const zm = prep(rm, false, rx, ox, ry, oy);
       const weave = saree.weave;
       const m = new THREE.MeshPhysicalMaterial({
         map: prep(colour, true, rx, ox, ry, oy),
         // relief: the embroidery is brighter than the ground, so the colour map's red channel doubles as a height map —
         // flowers and zari catch light like raised thread (same texture object, no extra upload)
-        bumpMap: prep(colour, true, rx, ox, ry, oy),
+        bumpMap: src === 'top' ? prep(h, false, rx, ox, ry, oy) : prep(colour, true, rx, ox, ry, oy),
         bumpScale: BUMP[saree.id],
         roughnessMap: zm,
         metalnessMap: zm,
@@ -865,7 +867,7 @@ function Warm({ ready }: { ready: boolean }) {
       if (!mats) return;
       for (const m of Array.isArray(mats) ? mats : [mats]) {
         const mm = m as THREE.MeshPhysicalMaterial;
-        [mm.map, mm.roughnessMap, mm.metalnessMap, mm.emissiveMap].forEach(t => t && textures.add(t));
+        [mm.map, mm.roughnessMap, mm.metalnessMap, mm.emissiveMap, mm.bumpMap].forEach(t => t && textures.add(t));
       }
     });
     const queue = [...textures];

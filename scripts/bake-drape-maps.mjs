@@ -78,6 +78,25 @@ const bake = (dataUrl, tint, baseRoughness, strength) => page.evaluate(async (da
   return { col: c.toDataURL('image/webp', 0.92), rm: rc.toDataURL('image/webp', 0.95) };
 }, dataUrl, tint, baseRoughness, strength);
 
+
+// Height map for the embroidery relief: luminance high-passed against a wide blur (so threads/flowers stand out of the
+// ground whatever the base colour), then rounded with two blur radii so each motif reads as a soft, domed cushion.
+const bakeHeight = (dataUrl) => page.evaluate(async (dataUrl) => {
+  const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = dataUrl; });
+  const w = img.naturalWidth, h = img.naturalHeight;
+  const blurred = px => { const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d', { willReadFrequently: true }); g.filter = `blur(${px}px)`; g.drawImage(img, 0, 0); return g.getImageData(0, 0, w, h).data; };
+  const lum = d => { const o = new Float32Array(w * h); for (let i = 0; i < o.length; i++) o[i] = (0.3 * d[i*4] + 0.59 * d[i*4+1] + 0.11 * d[i*4+2]) / 255; return o; };
+  const L0 = lum(blurred(0.6)), L1 = lum(blurred(2.2)), L2 = lum(blurred(6)), Lw = lum(blurred(28));
+  const out = new ImageData(w, h);
+  for (let i = 0; i < w * h; i++) {
+    const hp = (0.45 * L1[i] + 0.55 * L2[i]) - Lw[i];            // motif vs surroundings
+    const v = Math.min(1, Math.max(0, 0.5 + hp * 2.4 + (L0[i] - L1[i]) * 0.8));
+    const k = i * 4; out.data[k] = out.data[k+1] = out.data[k+2] = Math.round(v * 255); out.data[k+3] = 255;
+  }
+  const c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').putImageData(out, 0, 0);
+  return c.toDataURL('image/webp', 0.92);
+}, dataUrl);
+
 for (const s of sarees) {
   for (const kind of ['top', 'edge']) {
     const src = path.join(dir, `${kind}-${s.id}.webp`);
@@ -85,6 +104,7 @@ for (const s of sarees) {
     const out = await bake(dataUrl, s.tint, s.roughness, s.zari);
     fs.writeFileSync(path.join(dir, `${kind}-${s.id}-col.webp`), Buffer.from(out.col.split(',')[1], 'base64'));
     fs.writeFileSync(path.join(dir, `${kind}-${s.id}-rm.webp`), Buffer.from(out.rm.split(',')[1], 'base64'));
+    if (kind === 'top') fs.writeFileSync(path.join(dir, `top-${s.id}-h.webp`), Buffer.from((await bakeHeight(dataUrl)).split(',')[1], 'base64'));
     console.log(`baked ${kind}-${s.id}`);
   }
 }
