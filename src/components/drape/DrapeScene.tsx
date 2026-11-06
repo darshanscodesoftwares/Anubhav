@@ -32,6 +32,10 @@ export interface DrapeSceneProps {
 /** Shared state of the fixed wooden box (world units). */
 interface BoxState {
   x: number; z: number; top: number; deep: number; reach: number;
+  /** release a carried saree within this distance and the box takes it (the lid opens from `reach`) */
+  take: number;
+  /** where the saree is being sucked in (it stays where it was let go) */
+  px: number; py: number; pz: number;
   /** the dragged saree is close enough → the lid opens */
   near: boolean;
   occupant: Saree['id'] | null;
@@ -483,9 +487,10 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
       // let go over the open box → it takes the saree
       if (wasHeld.current && !heldNow && A.mode === 'none' && !B.occupant) {
         const p = body.translation();
-        if (Math.hypot(p.x - B.x, p.z - B.z) < B.reach) {
+        if (Math.hypot(p.x - B.x, p.z - B.z) < B.take) {
           const r = body.rotation();
           A.mode = 'pull'; A.t = 0; A.from.set(p.x, p.y, p.z);
+          B.px = p.x; B.py = p.y; B.pz = p.z;
           A.yaw0 = tmp.e.setFromQuaternion(tmp.q.set(r.x, r.y, r.z, r.w), 'YXZ').y;
           B.occupant = saree.id; B.phase = 'pull';
           hovering.current = false;
@@ -496,31 +501,25 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
       if (A.mode !== 'none') {
         const sc = scaleRef.current;
         if (A.mode === 'pull') {
-          // Tugged in a straight line: the box strains against the saree — it lurches forward, snags and slips back a
-          // few times (the cloth stretching toward the box each time it's yanked), then gives way and is pulled through.
+          // Sucked in right where it was let go: nothing drags it toward the box. It lifts a touch, strains against the pull
+          // (stretching tall each time it's yanked and slumping back), then gives way and is drawn down into a point.
           A.t = Math.min(1, A.t + dt / 2.1);
           const t = A.t;
-          const strain = Math.sin(t * Math.PI * 7.5) * Math.min(1, t * 5) * (1 - t) ** 0.8;   // tug / slack cycles, fading out as it gives
+          const strain = Math.sin(t * Math.PI * 7.5) * Math.min(1, t * 5) * (1 - t) ** 0.8;
           const prog = THREE.MathUtils.clamp(t ** 1.7 + 0.055 * strain, 0, 1);
-          const mouthY = B.top + 0.5 * s;
           const fall = THREE.MathUtils.clamp((prog - 0.6) / 0.4, 0, 1);
-          const approach = Math.min(1, prog / 0.6);
-          const gx = A.from.x + (B.x - A.from.x) * approach, gz = A.from.z + (B.z - A.from.z) * approach;
-          const gy = A.from.y + (mouthY - A.from.y) * approach ** 0.85 + (B.deep - mouthY) * fall * fall;
-          // a little shudder across the pull direction while it resists
-          const dxw = B.x - A.from.x, dzw = B.z - A.from.z, dl = Math.hypot(dxw, dzw) || 1;
-          const shake = Math.sin(t * 90) * 0.035 * s * Math.abs(strain) * (1 - fall);
-          body.setNextKinematicTranslation(tmp.v.set(gx - (dzw / dl) * shake, gy, gz + (dxw / dl) * shake));
+          const lift = Math.sin(Math.min(1, prog / 0.6) * Math.PI * 0.5) * 0.22 * s;       // anticipation
+          const gy = A.from.y + lift - 0.4 * s * fall * fall;
+          const shake = Math.sin(t * 90) * 0.03 * s * Math.abs(strain) * (1 - fall);
+          body.setNextKinematicTranslation(tmp.v.set(A.from.x + shake, gy, A.from.z));
           body.setNextKinematicRotation(tmp.q.setFromEuler(tmp.e.set(0, A.yaw0, 0)));
+          B.py = gy - 0.15 * s;
           if (sc) {
-            // stretch toward the box (in the saree's own frame) while it's under tension; squash a touch across; narrow to a streak at the end
-            const c = Math.cos(A.yaw0), sn = Math.sin(A.yaw0);
-            const lx = Math.abs((dxw / dl) * c - (dzw / dl) * sn), lz = Math.abs((dxw / dl) * sn + (dzw / dl) * c);
             const tension = (0.35 + 0.65 * Math.max(0, strain)) * (1 - fall * 0.4) * Math.min(1, t * 4);
-            const k = 1 - 0.8 * fall ** 1.2;
-            const sx = k * (1 + 0.42 * tension * lx - 0.14 * tension * lz), sz = k * (1 + 0.42 * tension * lz - 0.14 * tension * lx);
-            const sy = k * (1 - 0.12 * tension + 0.7 * fall ** 2);
-            sc.scale.set(Math.max(0.05, sx), Math.max(0.05, sy), Math.max(0.05, sz));
+            const k = 1 - 0.9 * fall ** 1.2;
+            const sx = k * (1 - 0.14 * tension), sz = k * (1 - 0.14 * tension);
+            const sy = k * (1 + 0.5 * tension + 1.2 * fall ** 2);
+            sc.scale.set(Math.max(0.04, sx), Math.max(0.04, sy), Math.max(0.04, sz));
             sc.rotation.set(0, 0, 0);
           }
           if (A.t >= 1) {
@@ -542,7 +541,7 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
           A.t = Math.min(1, A.t + dt / 1.05);
           const e = 1 - (1 - A.t) ** 3;
           const ox = ctx.bounds.cx - B.x, oz = ctx.bounds.cz - B.z, ol = Math.hypot(ox, oz) || 1;
-          const tx = B.x + (ox / ol) * 2.3 * s, tz = B.z + (oz / ol) * 2.3 * s, ty = 0.85 * s;
+          const tx = B.x + (ox / ol) * 3.4 * s, tz = B.z + (oz / ol) * 3.4 * s, ty = 0.85 * s;
           tmp.v.set(B.x + (tx - B.x) * e, B.deep + (ty - B.deep) * e + Math.sin(Math.PI * Math.min(1, A.t * 1.1)) * 1.1 * s, B.z + (tz - B.z) * e);
           body.setNextKinematicTranslation(tmp.v);
           if (sc) { sc.scale.setScalar(0.06 + 0.94 * e); sc.rotation.set(0, 0, 0); }
@@ -894,7 +893,8 @@ function DeliveryBox() {
     B.x = x; B.z = z;
     B.top = (BOX.foot + BOX.h + BOX.lid + BOX.dome) * s;
     B.deep = (BOX.foot + BOX.h * 0.45) * s;
-    B.reach = 1.7 * ctx.bounds.s;
+    B.reach = 3.4 * ctx.bounds.s;
+    B.take = 2.2 * ctx.bounds.s;
   }, [ctx, x, z, s]);
 
   useFrame((_, dtRaw) => {
@@ -908,7 +908,7 @@ function DeliveryBox() {
     B.near = near;
     // While a saree is being carried around the box, the box stops being solid to it, so a held saree can never jam into
     // (or be shoved by) the chest on its way to the mouth; petals and resting sarees still bump into it otherwise.
-    const carrying = !!d?.heavy && Math.hypot(d.rb.translation().x - B.x, d.rb.translation().z - B.z) < B.reach * 2.1;
+    const carrying = !!d?.heavy && Math.hypot(d.rb.translation().x - B.x, d.rb.translation().z - B.z) < B.reach * 1.25;
     const wantSolid = !(carrying || B.phase === 'pull' || B.phase === 'spit');
     if (col.current && wantSolid !== solid.current) { col.current.setSensor(!wantSolid); solid.current = wantSolid; }
     const open = near || B.phase === 'pull' || B.phase === 'spit' ? 1 : 0;
@@ -920,7 +920,8 @@ function DeliveryBox() {
     vortexMat.opacity = vAmt.current * 0.9;
     if (vortex.current) {
       vortex.current.rotation.z -= dt * (2 + 9 * vAmt.current);
-      vortex.current.scale.setScalar(0.6 + 0.7 * vAmt.current);
+      vortex.current.scale.setScalar(0.5 + 0.6 * vAmt.current);
+      vortex.current.position.set(B.px, Math.max(0.05, B.py), B.pz);
     }
   });
 
@@ -928,6 +929,10 @@ function DeliveryBox() {
   return (
     <>
       <ShadowBlob body={rb} w={BOX.w * s} d={BOX.d * s} strength={1.15} />
+      {/* the vortex opens under the saree wherever it was let go */}
+      <mesh ref={vortex} material={vortexMat} rotation={[-Math.PI / 2, 0, 0]} renderOrder={2}>
+        <planeGeometry args={[2.4 * ctx.bounds.s, 2.4 * ctx.bounds.s]} />
+      </mesh>
       <RigidBody ref={rb} type="fixed" colliders={false} position={[x, 0, z]} rotation={[0, LAYOUT.box.ry, 0]}>
         <CuboidCollider ref={col} args={[(BOX.w / 2) * s, ((F + H + BOX.lid) / 2) * s, (BOX.d / 2) * s]} position={[0, ((F + H + BOX.lid) / 2) * s, 0]} friction={1} />
         <group scale={s}>
@@ -953,10 +958,6 @@ function DeliveryBox() {
               <mesh key={`h${sx}`} geometry={geo.ring} material={M.brass} position={[sx * (BOX.w / 2 + 0.02), 0.12, 0]} rotation={[0, Math.PI / 2, 0]} />
             ))}
           </group>
-          {/* vortex above the open mouth */}
-          <mesh ref={vortex} material={vortexMat} position={[0, F + H + 0.1, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-            <planeGeometry args={[BOX.w * 1.05, BOX.w * 1.05]} />
-          </mesh>
           {/* lid hinged along the back top edge */}
           <group ref={lid} position={[0, F + H, -BOX.d / 2]}>
             <group position={[0, 0, BOX.d / 2]}>
@@ -1181,7 +1182,7 @@ function Warm({ ready }: { ready: boolean }) {
 /* ------------------------------------------------------------------ scene */
 
 function World({ bounds, filter, arcs, onBoxOpen, boxApi }: DrapeSceneProps & { bounds: Bounds }) {
-  const box = useRef<BoxState>({ x: 0, z: 0, top: 0, deep: 0, reach: 0, near: false, occupant: null, phase: 'idle' });
+  const box = useRef<BoxState>({ x: 0, z: 0, top: 0, deep: 0, reach: 0, take: 0, px: 0, py: 0, pz: 0, near: false, occupant: null, phase: 'idle' });
   const openCb = useRef(onBoxOpen);
   openCb.current = onBoxOpen;
   const onOpen = useCallback((id: Saree['id']) => openCb.current?.(id), []);
