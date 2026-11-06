@@ -3,13 +3,79 @@ import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useGSAP } from '@gsap/react';
 import { Lotus } from './Logo';
-import { FILTERS, PIECES, type Filter } from '../data/collection';
+import { FILTERS, PIECES, type Filter, type Piece } from '../data/collection';
 
 function Heart({ on }: { on: boolean }) {
   return (
     <svg viewBox="0 0 24 24" className="h-[1.15rem] w-[1.15rem]" fill={on ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" aria-hidden>
       <path d="M12 20.5s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.7c0 5.6-7.5 10.2-7.5 10.2Z" />
     </svg>
+  );
+}
+
+/**
+ * Cinematic reveal on hover (trial: pieces with `poses`). Three stills of one model are layered in the same frame:
+ * the portrait, the pallu-flourish pose and the full drape. One GSAP timeline plays on hover and reverses on leave —
+ * portrait eases out as the flourish drifts in, then the full drape is revealed by a soft fabric-like mask wipe with a
+ * little scale/translate so the cloth seems to sweep across. Reduced motion → a plain, quick cross-fade.
+ */
+function PieceImage({ piece }: { piece: Piece }) {
+  const box = useRef<HTMLDivElement>(null);
+  const tl = useRef<gsap.core.Timeline | null>(null);
+  const poses = piece.poses;
+
+  useGSAP(
+    () => {
+      if (!poses || !box.current) return;
+      const q = gsap.utils.selector(box.current);
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const t = gsap.timeline({ paused: true, defaults: { ease: 'power2.inOut' } });
+      if (reduce) {
+        t.to(q('.js-base'), { autoAlpha: 0, duration: 0.35, ease: 'none' }, 0).to(q('.js-c'), { autoAlpha: 1, duration: 0.35, ease: 'none' }, 0);
+      } else {
+        gsap.set(q('.js-b'), { autoAlpha: 0, xPercent: 3, scale: 1.04 });
+        gsap.set(q('.js-c'), { autoAlpha: 1, '--wipe': -34, xPercent: 2.5, scale: 1.045 });
+        // 1 · portrait slips away, flourish drifts in from the right
+        t.to(q('.js-base'), { autoAlpha: 0, xPercent: -3, scale: 1.03, duration: 0.8 }, 0)
+          .to(q('.js-b'), { autoAlpha: 1, xPercent: 0, scale: 1, duration: 0.85, ease: 'power3.out' }, 0.05)
+          // 2 · the full drape sweeps across on a soft mask edge, settling as it lands
+          .to(q('.js-c'), { '--wipe': 134, duration: 1.35, ease: 'power2.inOut' }, 0.55)
+          .to(q('.js-c'), { xPercent: 0, scale: 1, duration: 1.5, ease: 'power3.out' }, 0.55)
+          .to(q('.js-b'), { autoAlpha: 0, duration: 0.7, ease: 'power1.in' }, 0.95);
+      }
+      tl.current = t;
+      return () => { t.kill(); };
+    },
+    { scope: box, dependencies: [poses?.[0]] }
+  );
+
+  return (
+    <div
+      ref={box}
+      className="relative aspect-[1/1.05] overflow-hidden border-b border-ink/25"
+      onPointerEnter={() => tl.current?.timeScale(1).play()}
+      onPointerLeave={() => tl.current?.timeScale(1.7).reverse()}
+      onFocus={() => tl.current?.timeScale(1).play()}
+      onBlur={() => tl.current?.timeScale(1.7).reverse()}
+    >
+      <img
+        src={`/collection/${piece.id}.webp`}
+        alt={`${piece.name} saree`}
+        loading="lazy"
+        width={820}
+        height={897}
+        draggable={false}
+        className={`js-base absolute inset-x-0 bottom-0 h-full w-full object-contain object-bottom transition-transform duration-[1.2s] ease-silk ${poses ? '' : 'group-hover:scale-[1.035]'}`}
+      />
+      {poses && (
+        <>
+          <img src={`/collection/${poses[0]}.webp`} alt="" aria-hidden width={820} height={897} draggable={false} loading="lazy"
+            className="js-b pointer-events-none absolute inset-x-0 bottom-0 h-full w-full object-contain object-bottom opacity-0" />
+          <img src={`/collection/${poses[1]}.webp`} alt="" aria-hidden width={820} height={897} draggable={false} loading="lazy"
+            className="js-c pointer-events-none absolute inset-x-0 bottom-0 h-full w-full object-contain object-bottom opacity-0 [mask-image:linear-gradient(104deg,#000_calc(var(--wipe,0)*1%-13%),transparent_calc(var(--wipe,0)*1%+13%))] [-webkit-mask-image:linear-gradient(104deg,#000_calc(var(--wipe,0)*1%-13%),transparent_calc(var(--wipe,0)*1%+13%))]" />
+        </>
+      )}
+    </div>
   );
 }
 
@@ -74,17 +140,7 @@ export function Collections() {
       <div ref={grid} className="mt-10 grid grid-cols-2 gap-x-5 gap-y-12 md:mt-14 md:gap-x-10 lg:grid-cols-4">
         {shown.map(piece => (
           <article key={piece.id} className="js-reveal js-piece group">
-            <div className="relative aspect-[1/1.05] overflow-hidden border-b border-ink/25">
-              <img
-                src={`/collection/${piece.id}.webp`}
-                alt={`${piece.name} saree`}
-                loading="lazy"
-                width={820}
-                height={897}
-                draggable={false}
-                className="absolute inset-x-0 bottom-0 h-full w-full object-contain object-bottom transition-transform duration-[1.2s] ease-silk group-hover:scale-[1.035]"
-              />
-            </div>
+            <PieceImage piece={piece} />
             <div className="mt-3 flex items-start justify-between gap-3">
               <h3 className="font-serif text-[1.35rem] font-medium leading-tight">{piece.name}</h3>
               <button
