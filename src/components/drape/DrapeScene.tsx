@@ -494,24 +494,31 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
       wasHeld.current = heldNow;
       if (A.mode !== 'none') {
         const sc = scaleRef.current;
-        const ease = (x: number) => x * x * (3 - 2 * x);
         if (A.mode === 'pull') {
-          // lifted over the mouth of the box, then drawn down inside while it shrinks and turns square to the box
-          A.t = Math.min(1, A.t + dt / 1.25);
-          const e1 = ease(Math.min(1, A.t / 0.55)), e2 = ease(THREE.MathUtils.clamp((A.t - 0.4) / 0.6, 0, 1));
-          const mx = A.from.x + (B.x - A.from.x) * e1, mz = A.from.z + (B.z - A.from.z) * e1;
-          const my = A.from.y + (B.top + 0.75 * s - A.from.y) * e1;
-          tmp.v.set(mx, my + (B.deep - my) * e2, mz);
-          body.setNextKinematicTranslation(tmp.v);
-          const yaw = A.yaw0 + (LAYOUT.box.ry - A.yaw0) * e1;
+          // Wormhole: it creeps, then is yanked faster and faster along a tightening spiral into the mouth of the box,
+          // spinning, stretching into a streak and shrinking to nothing as it falls through.
+          A.t = Math.min(1, A.t + dt / 1.5);
+          const e = A.t ** 2.3;                                  // slow start, violent finish
+          const mouthY = B.top + 0.55 * s;
+          const rad = (1 - e) ** 1.4 * Math.min(1.9 * s, Math.hypot(A.from.x - B.x, A.from.z - B.z));
+          const ang = Math.atan2(A.from.z - B.z, A.from.x - B.x) + 9 * e ** 0.85;
+          const gx = B.x + Math.cos(ang) * rad, gz = B.z + Math.sin(ang) * rad;
+          const fall = THREE.MathUtils.clamp((A.t - 0.62) / 0.38, 0, 1);
+          const gy = (A.from.y + (mouthY - A.from.y) * Math.min(1, A.t / 0.62) ** 0.8) + (B.deep - mouthY) * fall * fall;
+          body.setNextKinematicTranslation(tmp.v.set(gx, gy, gz));
+          const yaw = A.yaw0 + (LAYOUT.box.ry - A.yaw0) * Math.min(1, A.t * 1.5) + 7.5 * Math.PI * e ** 1.15;
           body.setNextKinematicRotation(tmp.q.setFromEuler(tmp.e.set(0, yaw, 0)));
-          sc?.scale.setScalar(1 - 0.08 * e1 - 0.68 * e2);
+          if (sc) {
+            const k = 1 - e ** 0.9;                              // overall size → 0
+            sc.scale.set(Math.max(0.04, k * (1 - 0.3 * e)), Math.max(0.04, k * (1 + 0.9 * Math.sin(Math.PI * Math.min(1, e * 1.1)))), Math.max(0.04, k * (1 - 0.3 * e)));
+            sc.rotation.set(0, 0, 0.5 * Math.sin(e * Math.PI));
+          }
           if (A.t >= 1) {
             A.mode = 'inside';
             body.setEnabled(false);
             B.phase = 'inside';
             setInBox(true);
-            globalThis.setTimeout(() => ctx.onBoxOpen(saree.id), 380);
+            globalThis.setTimeout(() => ctx.onBoxOpen(saree.id), 260);
           }
         } else if (A.mode === 'inside') {
           if (B.phase === 'spit' && B.occupant === saree.id) {
@@ -528,10 +535,12 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
           const tx = B.x + (ox / ol) * 2.3 * s, tz = B.z + (oz / ol) * 2.3 * s, ty = 0.85 * s;
           tmp.v.set(B.x + (tx - B.x) * e, B.deep + (ty - B.deep) * e + Math.sin(Math.PI * Math.min(1, A.t * 1.1)) * 1.1 * s, B.z + (tz - B.z) * e);
           body.setNextKinematicTranslation(tmp.v);
-          sc?.scale.setScalar(0.24 + 0.76 * e);
+          if (sc) { sc.scale.setScalar(0.06 + 0.94 * e); sc.rotation.set(0, 0, 0); }
+          body.setNextKinematicRotation(tmp.q.setFromEuler(tmp.e.set(0, LAYOUT.box.ry + (A.yaw0 - LAYOUT.box.ry) * e + (1 - e) ** 2 * 5 * Math.PI, 0)));
           if (A.t >= 1) {
             A.mode = 'none';
             sc?.scale.setScalar(1);
+            body.setRotation(tmp.q.setFromEuler(tmp.e.set(0, A.yaw0, 0)), true);
             body.setBodyType(0, true); // dynamic again
             body.setLinvel({ x: (ox / ol) * 0.6 * s, y: 0, z: (oz / ol) * 0.6 * s }, true);
             hoverAt.current = { x: tx, z: tz };
@@ -812,9 +821,43 @@ function BandRing({ geo, material, y, w = BOX.w, d = BOX.d }: { geo: { bandX: TH
 /** overall size of the box relative to its modelled dimensions */
 const BOX_K = 0.84;
 
+/** Swirling gold spiral that spins above the open box while it is drawing a saree in. */
+function makeVortexTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 256;
+  const g = c.getContext('2d')!;
+  g.translate(128, 128);
+  for (let arm = 0; arm < 4; arm++) {
+    g.beginPath();
+    for (let k = 0; k <= 90; k++) {
+      const t = k / 90, r = 8 + t * 112, a = (arm / 4) * Math.PI * 2 + t * 5.2;
+      k ? g.lineTo(Math.cos(a) * r, Math.sin(a) * r) : g.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+    }
+    const grad = g.createRadialGradient(0, 0, 0, 0, 0, 126);
+    grad.addColorStop(0, 'rgba(255,236,190,0.95)');
+    grad.addColorStop(0.7, 'rgba(255,200,120,0.45)');
+    grad.addColorStop(1, 'rgba(255,190,110,0)');
+    g.strokeStyle = grad;
+    g.lineWidth = 9;
+    g.lineCap = 'round';
+    g.stroke();
+  }
+  const core = g.createRadialGradient(0, 0, 0, 0, 0, 40);
+  core.addColorStop(0, 'rgba(255,248,225,0.95)');
+  core.addColorStop(1, 'rgba(255,220,150,0)');
+  g.fillStyle = core;
+  g.fillRect(-128, -128, 256, 256);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
 function DeliveryBox() {
   const ctx = useContext(SceneCtx);
   const s = ctx.bounds.s * BOX_K;
+  const vortex = useRef<THREE.Mesh>(null);
+  const vAmt = useRef(0);
+  const vortexMat = useMemo(() => new THREE.MeshBasicMaterial({ map: makeVortexTexture(), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, side: THREE.DoubleSide }), []);
   const rb = useRef<RapierRigidBody>(null);
   const lid = useRef<THREE.Group>(null);
   const L = useRef({ a: 0, v: 0 });
@@ -855,6 +898,13 @@ function DeliveryBox() {
     // a soft hinge spring: swings open with a little settle, closes gently
     [L.current.a, L.current.v] = springStep(L.current.a, L.current.v, open, open ? 34 : 26, open ? 7 : 9, dt);
     if (lid.current) lid.current.rotation.x = -Math.max(0, L.current.a) * 1.85;
+    // the vortex builds while the saree is being drawn in, then collapses
+    vAmt.current += ((B.phase === 'pull' ? 1 : 0) - vAmt.current) * (1 - Math.exp(-dt * (B.phase === 'pull' ? 5 : 9)));
+    vortexMat.opacity = vAmt.current * 0.9;
+    if (vortex.current) {
+      vortex.current.rotation.z -= dt * (2 + 9 * vAmt.current);
+      vortex.current.scale.setScalar(0.6 + 0.7 * vAmt.current);
+    }
   });
 
   const H = BOX.h, F = BOX.foot;
@@ -886,6 +936,10 @@ function DeliveryBox() {
               <mesh key={`h${sx}`} geometry={geo.ring} material={M.brass} position={[sx * (BOX.w / 2 + 0.02), 0.12, 0]} rotation={[0, Math.PI / 2, 0]} />
             ))}
           </group>
+          {/* vortex above the open mouth */}
+          <mesh ref={vortex} material={vortexMat} position={[0, F + H + 0.1, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <planeGeometry args={[BOX.w * 1.05, BOX.w * 1.05]} />
+          </mesh>
           {/* lid hinged along the back top edge */}
           <group ref={lid} position={[0, F + H, -BOX.d / 2]}>
             <group position={[0, 0, BOX.d / 2]}>
