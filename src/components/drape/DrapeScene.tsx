@@ -500,60 +500,77 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
       wasHeld.current = heldNow;
       if (A.mode !== 'none') {
         const sc = scaleRef.current;
+        // pose of a saree tucked in the box: folded small, square to the box, resting on the velvet
+        const fitXZ = 0.52, fitY = 0.72;
+        const restY = (BOX.foot + 0.1) * s * BOX_K + half.y * s * fitY;
+        U.uTime.value = state.clock.elapsedTime;
         if (A.mode === 'pull') {
-          // Sucked in where it was let go: it turns to face the box, lifts a touch and strains against the pull (stretching
-          // toward the box with each yank, slumping back), then gives way — and is stretched out into a ribbon that pours
-          // into the box's mouth, thinning to nothing as it goes in.
-          A.t = Math.min(1, A.t + dt / 2.3);
+          // Modelled on the owner's reference GIF (9 frames): it hovers, bends into an S as its leading end tips toward
+          // the box, slides in leading-end first as a stretched, rippling streak, then settles folded inside.
+          A.t = Math.min(1, A.t + dt / 2.5);
           const t = A.t;
-          const strain = Math.sin(t * Math.PI * 7.5) * Math.min(1, t * 5) * (1 - t) ** 0.8;
-          const prog = THREE.MathUtils.clamp(t ** 1.7 + 0.055 * strain, 0, 1);
-          const f = THREE.MathUtils.clamp((prog - 0.58) / 0.42, 0, 1);           // the final pour
-          const e = f ** 1.5;
-          const dxw = B.x - A.from.x, dzw = B.z - A.from.z, dl = Math.hypot(dxw, dzw) || 1;
-          // line its long axis (local x) up with the pull direction
-          const yawT = Math.atan2(-dzw, dxw);
-          let dy = yawT - A.yaw0; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
-          const yaw = A.yaw0 + dy * THREE.MathUtils.smoothstep(prog, 0.0, 0.5);
-          const lift = Math.sin(Math.min(1, prog / 0.58) * Math.PI * 0.5) * 0.22 * s;
-          const mouthY = B.top + 0.35 * s;
-          const cx = A.from.x + dxw * e, cz = A.from.z + dzw * e;
-          const cy = A.from.y + lift + (mouthY - A.from.y - lift) * Math.min(1, e * 1.4) + (B.deep - mouthY) * Math.max(0, e - 0.7) / 0.3;
-          const shake = Math.sin(t * 90) * 0.03 * s * Math.abs(strain) * (1 - f);
-          body.setNextKinematicTranslation(tmp.v.set(cx - (dzw / dl) * shake, cy, cz + (dxw / dl) * shake));
-          body.setNextKinematicRotation(tmp.q.setFromEuler(tmp.e.set(0, yaw, 0)));
-          B.py = cy;
+          const sm = THREE.MathUtils.smoothstep;
+          const dxw = B.x - A.from.x, dzw = B.z - A.from.z;
+          const yawT = Math.atan2(-dzw, dxw);                 // local +x (the leading end) points at the box
+          let dyaw = yawT - A.yaw0; dyaw = Math.atan2(Math.sin(dyaw), Math.cos(dyaw));
+          const align = sm(t, 0, 0.3);
+          const bend = sm(t, 0.16, 0.42) * (1 - sm(t, 0.8, 0.95));   // S-bend in, straightened as it settles
+          const travel = sm(t, 0.42, 0.82) ** 1.35;                   // slow start, quick finish into the mouth
+          const settle = sm(t, 0.78, 1) ** 0.8;
+          const lift = Math.sin(Math.min(1, t / 0.42) * Math.PI * 0.5) * 0.18 * s * (1 - travel);
+          const mouthY = B.top + 0.5 * s;
+          let cx = A.from.x + dxw * travel, cz = A.from.z + dzw * travel;
+          let cy = A.from.y + lift + (mouthY - A.from.y) * travel;
+          // settle: drop through the mouth onto the velvet with a small give
+          cy += (restY - mouthY) * settle - Math.sin(Math.PI * settle) * 0.05 * s;
+          cx += (B.x - cx) * settle; cz += (B.z - cz) * settle;
+          body.setNextKinematicTranslation(tmp.v.set(cx, cy, cz));
+          const yawIn = A.yaw0 + dyaw * align;
+          let dfin = LAYOUT.box.ry - yawIn; dfin = Math.atan2(Math.sin(dfin), Math.cos(dfin));
+          body.setNextKinematicRotation(tmp.q.setFromEuler(tmp.e.set(0, yawIn + dfin * settle, 0)));
+          U.uBend.value = bend * (1 + 0.25 * Math.sin(t * 20) * sm(t, 0.42, 0.6) * (1 - sm(t, 0.7, 0.82)));
+          // the whip: a stretched streak that ripples hard along its length while it pours in
+          const whip = Math.sin(Math.PI * sm(t, 0.42, 0.84));
+          U.uRipple.value = 0.5 + 2.4 * whip;
+          U.uLag.value.set(-0.12 * whip * s, 0, 0);
           if (sc) {
-            const tension = (0.35 + 0.65 * Math.max(0, strain)) * Math.min(1, t * 4) * (1 - f);
-            const k = 1 - 0.94 * e ** 1.15;                                          // thins away at the mouth
-            const stretch = 1 + 0.4 * tension + 0.95 * Math.sin(Math.PI * Math.min(1, e * 1.05)) ** 0.8; // long ribbon mid-pour
-            sc.scale.set(Math.max(0.04, k * stretch), Math.max(0.04, k * (1 - 0.1 * tension)), Math.max(0.04, k * (1 - 0.14 * tension - 0.35 * e)));
+            const stretch = 1 + 0.95 * whip;
+            const thin = 1 - 0.32 * whip;
+            const sx = (stretch * (1 - settle) + fitXZ * settle) * (1 - 0.25 * travel * (1 - settle));
+            const sz = (thin * (1 - settle) + fitXZ * settle);
+            const sy = (thin * (1 - settle) + fitY * settle);
+            sc.scale.set(sx, sy, sz);
+            // keep the scaled bundle anchored at its leading end while it streaks, so it pours in rather than grows
+            sc.position.set(-0.5 * (sx - 1) * half.x * s * (1 - settle), 0, 0);
             sc.rotation.set(0, 0, 0);
           }
           if (A.t >= 1) {
             A.mode = 'inside';
-            body.setEnabled(false);
+            U.uBend.value = 0; U.uLag.value.set(0, 0, 0);
+            sc?.position.set(0, 0, 0);
             B.phase = 'inside';
             setInBox(true);
-            globalThis.setTimeout(() => ctx.onBoxOpen(saree.id), 220);
+            globalThis.setTimeout(() => ctx.onBoxOpen(saree.id), 650);
           }
         } else if (A.mode === 'inside') {
+          // resting folded in the box (visible), breathing very slightly
+          U.uRipple.value = 0.25;
           if (B.phase === 'spit' && B.occupant === saree.id) {
             A.mode = 'spit'; A.t = 0;
-            body.setEnabled(true);
-            body.setNextKinematicTranslation(tmp.v.set(B.x, B.deep, B.z));
             setInBox(false);
           }
         } else if (A.mode === 'spit') {
-          // springs up out of the box in an arc toward the open floor, unfolding back to size
-          A.t = Math.min(1, A.t + dt / 1.05);
+          // lifts out of the box and arcs onto the open floor, unfolding back to full size
+          A.t = Math.min(1, A.t + dt / 1.15);
           const e = 1 - (1 - A.t) ** 3;
           const ox = ctx.bounds.cx - B.x, oz = ctx.bounds.cz - B.z, ol = Math.hypot(ox, oz) || 1;
           const tx = B.x + (ox / ol) * 3.4 * s, tz = B.z + (oz / ol) * 3.4 * s, ty = 0.85 * s;
-          tmp.v.set(B.x + (tx - B.x) * e, B.deep + (ty - B.deep) * e + Math.sin(Math.PI * Math.min(1, A.t * 1.1)) * 1.1 * s, B.z + (tz - B.z) * e);
+          tmp.v.set(B.x + (tx - B.x) * e, restY + (ty - restY) * e + Math.sin(Math.PI * Math.min(1, A.t * 1.1)) * 1.1 * s, B.z + (tz - B.z) * e);
           body.setNextKinematicTranslation(tmp.v);
-          if (sc) { sc.scale.setScalar(0.06 + 0.94 * e); sc.rotation.set(0, 0, 0); }
-          body.setNextKinematicRotation(tmp.q.setFromEuler(tmp.e.set(0, A.yaw0, 0)));
+          if (sc) { sc.scale.set(fitXZ + (1 - fitXZ) * e, fitY + (1 - fitY) * e, fitXZ + (1 - fitXZ) * e); sc.rotation.set(0, 0, 0); }
+          let dy = A.yaw0 - LAYOUT.box.ry; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+          body.setNextKinematicRotation(tmp.q.setFromEuler(tmp.e.set(0, LAYOUT.box.ry + dy * e, 0)));
+          U.uRipple.value = 0.5 + 0.8 * Math.sin(Math.PI * A.t);
           if (A.t >= 1) {
             A.mode = 'none';
             sc?.scale.setScalar(1);
@@ -780,7 +797,7 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
         friction={1.25}
         restitution={0.04}
       />
-      <group ref={scaleRef} visible={!inBox}>
+      <group ref={scaleRef}>
       <group ref={tiltRef}>
       <mesh
         geometry={geometry}
@@ -885,7 +902,7 @@ function DeliveryBox() {
     const carrying = !!d?.heavy && Math.hypot(d.rb.translation().x - B.x, d.rb.translation().z - B.z) < B.reach * 1.25;
     const wantSolid = !(carrying || B.phase === 'pull' || B.phase === 'spit');
     if (col.current && wantSolid !== solid.current) { col.current.setSensor(!wantSolid); solid.current = wantSolid; }
-    const open = near || B.phase === 'pull' || B.phase === 'spit' ? 1 : 0;
+    const open = near || B.phase !== 'idle' ? 1 : 0;
     // a soft hinge spring: swings open with a little settle, closes gently
     [L.current.a, L.current.v] = springStep(L.current.a, L.current.v, open, open ? 34 : 26, open ? 7 : 9, dt);
     if (lid.current) lid.current.rotation.x = -Math.max(0, L.current.a) * 1.85;
