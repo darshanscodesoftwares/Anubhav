@@ -830,43 +830,9 @@ function BandRing({ geo, material, y, w = BOX.w, d = BOX.d }: { geo: { bandX: TH
 /** overall size of the box relative to its modelled dimensions */
 const BOX_K = 0.84;
 
-/** Swirling gold spiral that spins above the open box while it is drawing a saree in. */
-function makeVortexTexture() {
-  const c = document.createElement('canvas');
-  c.width = c.height = 256;
-  const g = c.getContext('2d')!;
-  g.translate(128, 128);
-  for (let arm = 0; arm < 4; arm++) {
-    g.beginPath();
-    for (let k = 0; k <= 90; k++) {
-      const t = k / 90, r = 8 + t * 112, a = (arm / 4) * Math.PI * 2 + t * 5.2;
-      k ? g.lineTo(Math.cos(a) * r, Math.sin(a) * r) : g.moveTo(Math.cos(a) * r, Math.sin(a) * r);
-    }
-    const grad = g.createRadialGradient(0, 0, 0, 0, 0, 126);
-    grad.addColorStop(0, 'rgba(255,236,190,0.95)');
-    grad.addColorStop(0.7, 'rgba(255,200,120,0.45)');
-    grad.addColorStop(1, 'rgba(255,190,110,0)');
-    g.strokeStyle = grad;
-    g.lineWidth = 9;
-    g.lineCap = 'round';
-    g.stroke();
-  }
-  const core = g.createRadialGradient(0, 0, 0, 0, 0, 40);
-  core.addColorStop(0, 'rgba(255,248,225,0.95)');
-  core.addColorStop(1, 'rgba(255,220,150,0)');
-  g.fillStyle = core;
-  g.fillRect(-128, -128, 256, 256);
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  return t;
-}
-
 function DeliveryBox() {
   const ctx = useContext(SceneCtx);
   const s = ctx.bounds.s * BOX_K;
-  const vortex = useRef<THREE.Mesh>(null);
-  const vAmt = useRef(0);
-  const vortexMat = useMemo(() => new THREE.MeshBasicMaterial({ map: makeVortexTexture(), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, side: THREE.DoubleSide }), []);
   const rb = useRef<RapierRigidBody>(null);
   const lid = useRef<THREE.Group>(null);
   const col = useRef<RapierCollider>(null);
@@ -915,24 +881,12 @@ function DeliveryBox() {
     // a soft hinge spring: swings open with a little settle, closes gently
     [L.current.a, L.current.v] = springStep(L.current.a, L.current.v, open, open ? 34 : 26, open ? 7 : 9, dt);
     if (lid.current) lid.current.rotation.x = -Math.max(0, L.current.a) * 1.85;
-    // the vortex builds while the saree is being drawn in, then collapses
-    vAmt.current += ((B.phase === 'pull' ? 1 : 0) - vAmt.current) * (1 - Math.exp(-dt * (B.phase === 'pull' ? 5 : 9)));
-    vortexMat.opacity = vAmt.current * 0.9;
-    if (vortex.current) {
-      vortex.current.rotation.z -= dt * (2 + 9 * vAmt.current);
-      vortex.current.scale.setScalar(0.5 + 0.6 * vAmt.current);
-      vortex.current.position.set(B.px, Math.max(0.05, B.py), B.pz);
-    }
   });
 
   const H = BOX.h, F = BOX.foot;
   return (
     <>
       <ShadowBlob body={rb} w={BOX.w * s} d={BOX.d * s} strength={1.15} />
-      {/* the vortex opens under the saree wherever it was let go */}
-      <mesh ref={vortex} material={vortexMat} rotation={[-Math.PI / 2, 0, 0]} renderOrder={2}>
-        <planeGeometry args={[2.4 * ctx.bounds.s, 2.4 * ctx.bounds.s]} />
-      </mesh>
       <RigidBody ref={rb} type="fixed" colliders={false} position={[x, 0, z]} rotation={[0, LAYOUT.box.ry, 0]}>
         <CuboidCollider ref={col} args={[(BOX.w / 2) * s, ((F + H + BOX.lid) / 2) * s, (BOX.d / 2) * s]} position={[0, ((F + H + BOX.lid) / 2) * s, 0]} friction={1} />
         <group scale={s}>
