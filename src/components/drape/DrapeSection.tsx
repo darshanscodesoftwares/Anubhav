@@ -16,12 +16,12 @@ const hasWebGL = () => {
   }
 };
 
-/** Drape saree → its portrait in the Collections set (black has no model shot yet → its folded cut-out). */
+/** The popup shows the saree on its own (the folded cut-out), not on a model — same for all five. */
 const BOX_PORTRAIT: Record<Saree['id'], { src: string; cover: boolean }> = {
-  maroon: { src: '/collection/gulmohar.webp', cover: true },
-  ivory: { src: '/collection/noor.webp', cover: true },
-  navy: { src: '/collection/rajshree.webp', cover: true },
-  yellow: { src: '/collection/swarna.webp', cover: true },
+  maroon: { src: '/drape/cut-maroon.webp', cover: false },
+  ivory: { src: '/drape/cut-ivory.webp', cover: false },
+  navy: { src: '/drape/cut-navy.webp', cover: false },
+  yellow: { src: '/drape/cut-yellow.webp', cover: false },
   black: { src: '/drape/cut-black.webp', cover: false }
 };
 
@@ -191,8 +191,8 @@ export function DrapeSection() {
               className={`relative flex w-full max-w-4xl flex-col items-center gap-8 md:flex-row md:items-end md:gap-14 transition-[translate,opacity] duration-700 ease-silk ${showBox ? 'translate-y-0 opacity-100' : 'translate-y-6 opacity-0'}`}
               onClick={e => e.stopPropagation()}
             >
-              <div className="relative h-[46vh] w-full max-w-sm border-b border-ink/25 md:h-[62vh]">
-                <img src={img.src} alt={`${sr.name} on the model`} className={`absolute inset-x-0 bottom-0 h-full w-full ${img.cover ? 'object-contain object-bottom' : 'object-contain object-center'}`} draggable={false} />
+              <div className="relative h-[40vh] w-full max-w-md md:h-[56vh]">
+                <img src={img.src} alt={sr.name} className="absolute inset-0 h-full w-full scale-[1.3] object-contain object-center drop-shadow-[0_22px_26px_rgba(90,42,30,0.22)]" draggable={false} />
               </div>
               <div className="max-w-sm pb-4 text-center md:text-left">
                 <p className="kicker text-gold">From the box</p>
