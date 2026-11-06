@@ -623,8 +623,8 @@ function Bundle({ saree, at, index, dim, hop, float = false }: { saree: Saree; a
         if (Math.abs(mx) > half.x * 1.9 * s || Math.abs(mz) > half.z * 1.9 * s) return;
         // centre of mass past the lower bundle's edge → it can't balance there and slides off (physics stays yaw-locked,
         // so this is a push away from the ledge instead of a tip-over)
-        const ox = Math.sign(mx) * Math.max(0, Math.abs(mx) - half.x * s * 1.55);
-        const oz = Math.sign(mz) * Math.max(0, Math.abs(mz) - half.z * s * 1.55);
+        const ox = Math.sign(mx) * Math.max(0, Math.abs(mx) - half.x * s * 1.2);
+        const oz = Math.sign(mz) * Math.max(0, Math.abs(mz) - half.z * s * 1.2);
         // resting on an edge: once my centre is past ~55 % of the lower bundle's half-extent I lean out over it
         // (visual tilt only — the body stays flat and yaw-locked), more the further I overhang
         const lox = Math.sign(mx) * Math.max(0, Math.abs(mx) - half.x * s * 0.55);
