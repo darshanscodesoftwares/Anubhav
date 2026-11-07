@@ -133,6 +133,27 @@ export function DrapeSection() {
     >
       {/* Copy sits BEHIND the 3D canvas so drapes and petals pass in front of it (canvas is transparent). */}
       <div className="pointer-events-none absolute inset-0 px-6 py-8 md:px-[5.6vw] md:py-10">
+        {canPlay && (
+          <div
+            ref={zone}
+            className="absolute bottom-[6%] left-6 aspect-square w-[clamp(138px,14vw,184px)] rounded-[20px] border border-gold/80 bg-blush/95 shadow-[0_18px_40px_-22px_rgba(90,42,30,0.35)] md:left-[5.6vw]"
+            aria-label="Drop zone: release a saree here to see its details"
+          >
+            <span className="absolute inset-[9%] rounded-[14px] border border-gold/25" aria-hidden />
+            <div className={`absolute inset-0 transition-opacity duration-300 ${drop?.phase === 'loading' ? 'opacity-30' : 'opacity-100'}`}>
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 px-3 text-center text-gold">
+                <svg viewBox="0 0 64 44" className="h-[30%] w-auto" fill="currentColor" aria-hidden>
+                  <path d="M6 40 L 18 6 L 32 4 L 46 6 L 58 40 L 46 36 L 32 40 L 18 36 Z" opacity=".92" />
+                  <path d="M18 6 L 32 10 L 46 6 M 32 10 L 32 40" fill="none" stroke="#f3e4dc" strokeWidth="1.1" strokeLinecap="round" opacity=".7" />
+                  <circle cx="22" cy="18" r="1.6" fill="#f3e4dc" opacity=".7" />
+                  <circle cx="42" cy="18" r="1.6" fill="#f3e4dc" opacity=".7" />
+                </svg>
+                <span className="font-serif text-[0.95rem] italic leading-tight text-ink/80">Place Drape Here</span>
+                <Lotus className="h-3 w-5 text-gold/80" />
+              </div>
+            </div>
+          </div>
+        )}
         <div className="js-drape-reveal absolute left-6 top-[30%] md:left-[5.6vw] md:top-[22%]">
           <h2 className="font-serif text-[clamp(3.4rem,8vw,7.6rem)] font-medium italic leading-[0.88] text-ink">
             Pick a<br />Drape
@@ -201,30 +222,14 @@ export function DrapeSection() {
 
       {/* overlay UI (pointer-events only on controls so drapes can be grabbed through the copy) */}
       <div className="pointer-events-none absolute inset-0 px-6 py-8 md:px-[5.6vw] md:py-10">
-        {canPlay && (
-          <div
-            ref={zone}
-            className="absolute bottom-[6%] left-6 aspect-square w-[clamp(138px,14vw,184px)] rounded-[20px] border border-gold/80 bg-blush/95 shadow-[0_18px_40px_-22px_rgba(90,42,30,0.35)] md:left-[5.6vw]"
-            aria-label="Drop zone: release a saree here to see its details"
-          >
-            <span className="absolute inset-[9%] rounded-[14px] border border-gold/25" aria-hidden />
-            {drop?.phase === 'loading' ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-gold">
-                <span className="h-7 w-7 motion-safe:animate-spin rounded-full border border-gold/30 border-t-gold" />
-                <span className="kicker text-[0.62rem] text-gold">Unfolding</span>
-              </div>
-            ) : (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 px-3 text-center text-gold">
-                <svg viewBox="0 0 64 44" className="h-[30%] w-auto" fill="currentColor" aria-hidden>
-                  <path d="M6 40 L 18 6 L 32 4 L 46 6 L 58 40 L 46 36 L 32 40 L 18 36 Z" opacity=".92" />
-                  <path d="M18 6 L 32 10 L 46 6 M 32 10 L 32 40" fill="none" stroke="#f3e4dc" strokeWidth="1.1" strokeLinecap="round" opacity=".7" />
-                  <circle cx="22" cy="18" r="1.6" fill="#f3e4dc" opacity=".7" />
-                  <circle cx="42" cy="18" r="1.6" fill="#f3e4dc" opacity=".7" />
-                </svg>
-                <span className="font-serif text-[0.95rem] italic leading-tight text-ink/80">Place Drape Here</span>
-                <Lotus className="h-3 w-5 text-gold/80" />
-              </div>
-            )}
+        {canPlay && drop?.phase === 'loading' && (
+          <div className="absolute bottom-[6%] left-6 aspect-square w-[clamp(138px,14vw,184px)] md:left-[5.6vw]" aria-live="polite">
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-gold">
+              <span className="grid place-items-center rounded-full bg-blush/90 p-3 shadow-[0_0_30px_14px_rgba(243,228,220,0.9)]">
+                <span className="block h-7 w-7 motion-safe:animate-spin rounded-full border border-gold/30 border-t-gold" />
+              </span>
+              <span className="kicker rounded-full bg-blush/90 px-2 text-[0.62rem] text-gold">Unfolding</span>
+            </div>
           </div>
         )}
         <div className="js-drape-reveal flex items-center gap-3 text-ink">
