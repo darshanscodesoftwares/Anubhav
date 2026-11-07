@@ -358,6 +358,7 @@ Owner request: append an entry here after every change session.
 - **2026‑11‑07** — Owner: quick-buy **Buy Now** colour toned down: gradient `#b27a35→#9a6528` → a softer, lighter `#c9a06a→#b98d56` with a gentler shadow (`QuickBuy.tsx`).
 - **2026‑11‑07** — Owner: Buy Now "minimal and lighter": now a flat soft-tan fill `#ecd5b8` (hover `#e6cba9`) with deep-brown text `#6b4a22`, no gradient, no shadow, no lift on hover (`QuickBuy.tsx`).
 - **2026‑11‑07** — Owner: the slide-off after closing the drop-panel popup should go in a random direction between screen-left and screen-up (a 90° quadrant). `zoneApi.eject` now picks θ ∈ [0, 90°] at random and applies `(−9·cosθ, +0.5, −11·sinθ)·m` (θ = 0 → straight left, 90° → straight up/away; ×11 on the depth axis because z is foreshortened on screen).
+- **2026‑11‑07** — Owner: the slide-off after the popup closes should be a little smoother and slower. `zoneApi.eject` no longer applies one instant impulse: the total push (`(−5.4·cosθ, 0.25, −6.6·sinθ)·m`, ≈ 60 % of before) is spread over 0.9 s with a sin² swell (16 ms steps, `∫ = D/2` normalised), so the saree eases into motion and glides off. Direction is still random within the left-to-up quadrant.
 
 ## Next / ideas
 
