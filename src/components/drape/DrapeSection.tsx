@@ -70,13 +70,17 @@ export function DrapeSection() {
   const zone = useRef<HTMLDivElement>(null);
   const [drop, setDrop] = useState<{ id: Saree['id']; phase: 'loading' | 'open' } | null>(null);
   const dropTimer = useRef(0);
+  // the scene lets us nudge a saree off the panel again once its popup is closed (ready for the next placement)
+  const zoneApi = useRef<{ eject?: (id: Saree['id']) => void }>({});
+  const lastId = useRef<Saree['id'] | null>(null);
   const onDropZone = useCallback((id: Saree['id']) => {
-    setDrop(d => {
-      if (d) return d;
-      globalThis.clearTimeout(dropTimer.current);
-      dropTimer.current = globalThis.setTimeout(() => setDrop(x => (x && x.id === id ? { id, phase: 'open' } : x)), 1300) as unknown as number;
-      return { id, phase: 'loading' };
-    });
+    // always accept a placement: a new one restarts the loader (never ignored because an earlier one is still settling)
+    globalThis.clearTimeout(dropTimer.current);
+    globalThis.clearTimeout(popTimer.current);
+    lastId.current = id;
+    setPop(null);
+    setDrop({ id, phase: 'loading' });
+    dropTimer.current = globalThis.setTimeout(() => setDrop({ id, phase: 'open' }), 1300) as unknown as number;
   }, []);
   useEffect(() => () => globalThis.clearTimeout(dropTimer.current), []);
   // the popup stays mounted while it fades: `show` drives every transition (in on open, out on close)
@@ -92,6 +96,7 @@ export function DrapeSection() {
   const closeDrop = () => {
     globalThis.clearTimeout(dropTimer.current);
     setDrop(null);
+    if (lastId.current) zoneApi.current.eject?.(lastId.current);   // slide it off the panel so the next placement is clean
     setPop(p => (p ? { ...p, show: false } : p));
     globalThis.clearTimeout(popTimer.current);
     popTimer.current = globalThis.setTimeout(() => setPop(null), 800) as unknown as number;
@@ -182,7 +187,7 @@ export function DrapeSection() {
         {canPlay ? (
           mounted && (
             <Suspense fallback={null}>
-              <DrapeScene key={sceneKey} active={active} filter={filter} arcs={arcs} dropZone={zone} onDropZone={onDropZone} onContextLost={() => setSceneKey(k => k + 1)} />
+              <DrapeScene key={sceneKey} active={active} filter={filter} arcs={arcs} dropZone={zone} onDropZone={onDropZone} zoneApi={zoneApi} onContextLost={() => setSceneKey(k => k + 1)} />
             </Suspense>
           )
         ) : (

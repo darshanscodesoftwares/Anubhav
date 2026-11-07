@@ -24,6 +24,8 @@ export interface DrapeSceneProps {
   /** the square drop zone (DOM, in the section): a saree released over it is reported via onDropZone */
   dropZone?: React.RefObject<HTMLElement | null>;
   onDropZone?: (id: Saree['id']) => void;
+  /** the scene fills `eject`: slides a saree off the drop panel (called when its popup closes) */
+  zoneApi?: React.RefObject<{ eject?: (id: Saree['id']) => void }>;
 }
 
 interface Entry {
@@ -930,7 +932,7 @@ function Warm({ ready }: { ready: boolean }) {
 
 /* ------------------------------------------------------------------ scene */
 
-function World({ bounds, filter, arcs, dropZone, onDropZone }: DrapeSceneProps & { bounds: Bounds }) {
+function World({ bounds, filter, arcs, dropZone, onDropZone, zoneApi }: DrapeSceneProps & { bounds: Bounds }) {
   const { startDrag, dragging } = useDragController(bounds, (key, x, y) => {
     const el = dropZone?.current;
     if (!el) return;
@@ -940,6 +942,16 @@ function World({ bounds, filter, arcs, dropZone, onDropZone }: DrapeSceneProps &
 
   const petals = useRef(new Map<string, RapierRigidBody>());
   const bundles = useRef(new Map<string, RapierRigidBody>());
+  useEffect(() => {
+    if (!zoneApi) return;
+    zoneApi.current.eject = id => {
+      const b = bundles.current.get(id);
+      if (!b) return;
+      const m = b.mass();
+      // a gentle shove up-and-left (away from the panel on the right) that the saree's heavy damping settles in ~1.5 units
+      b.applyImpulse({ x: -9 * m, y: 0.5 * m, z: -2.2 * m }, true);
+    };
+  }, [zoneApi]);
 
   // Cursor push field: track where the pointer is on the plane the floating sarees hover in.
   const cursor = useRef({ x: 0, z: 0, vx: 0, vz: 0, on: false });
