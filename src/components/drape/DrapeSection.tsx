@@ -153,7 +153,7 @@ export function DrapeSection() {
         {canPlay && (
           <div
             ref={zone}
-            className="absolute bottom-[6%] right-6 aspect-square w-[clamp(138px,14vw,184px)] rounded-[20px] border border-gold/80 bg-blush/95 shadow-[0_18px_40px_-22px_rgba(90,42,30,0.35)] md:right-[5.6vw]"
+            className="absolute bottom-[17%] right-6 aspect-square w-[clamp(138px,14vw,184px)] rounded-[20px] border border-gold/80 bg-blush/95 shadow-[0_18px_40px_-22px_rgba(90,42,30,0.35)] md:right-[5.6vw] [transform:perspective(520px)_rotateX(24deg)]"
             aria-label="Drop zone: release a saree here to see its details"
           >
             <span className="absolute inset-[9%] rounded-[14px] border border-gold/25" aria-hidden />
@@ -246,7 +246,7 @@ export function DrapeSection() {
       {/* overlay UI (pointer-events only on controls so drapes can be grabbed through the copy) */}
       <div className="pointer-events-none absolute inset-0 px-6 py-8 md:px-[5.6vw] md:py-10">
         {canPlay && (
-          <div className={`absolute bottom-[6%] right-6 aspect-square w-[clamp(138px,14vw,184px)] transition-opacity duration-500 ease-silk md:right-[5.6vw] ${drop?.phase === 'loading' ? 'opacity-100' : 'opacity-0'}`} aria-live="polite">
+          <div className={`absolute bottom-[17%] right-6 aspect-square w-[clamp(138px,14vw,184px)] transition-opacity duration-500 ease-silk md:right-[5.6vw] ${drop?.phase === 'loading' ? 'opacity-100' : 'opacity-0'}`} aria-live="polite">
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-gold">
               <span className="grid place-items-center rounded-full bg-blush/90 p-3 shadow-[0_0_30px_14px_rgba(243,228,220,0.9)]">
                 <span className="block h-7 w-7 motion-safe:animate-spin rounded-full border border-gold/30 border-t-gold" />
