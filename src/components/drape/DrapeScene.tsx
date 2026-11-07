@@ -246,7 +246,7 @@ const GRAVITY = 14;
 /** Petals are feather-light: barely any gravity + high air drag → a gust darts them away, then they drift down slowly. */
 const PETAL_GRAVITY = 0.16;
 
-function useDragController(bounds: Bounds, onRelease?: (key: string, x: number, y: number) => void) {
+function useDragController(bounds: Bounds, onRelease?: (key: string, x: number, y: number, boxes: [number, number, number, number][]) => void) {
   const { camera, gl } = useThree();
   const dragging = useRef<Entry | null>(null);
   const releaseRef = useRef(onRelease);
@@ -273,7 +273,26 @@ function useDragController(bounds: Bounds, onRelease?: (key: string, x: number, 
     const end = (u?: PointerEvent) => {
       const d = dragging.current;
       dragging.current = null;
-      if (d?.heavy && u) releaseRef.current?.(d.key, u.clientX, u.clientY);
+      if (d?.heavy && u) {
+        // also report where the saree itself is on screen (its footprint's screen box): a big saree is often released with
+        // the cursor on its edge, outside a small drop panel even though the saree is clearly sitting on it
+        const p3 = d.rb.translation(), r3 = d.rb.rotation();
+        const yaw = new THREE.Euler().setFromQuaternion(new THREE.Quaternion(r3.x, r3.y, r3.z, r3.w), 'YXZ').y;
+        const rc = gl.domElement.getBoundingClientRect();
+        const hw = (BUNDLE.w / 2) * bounds.s, hd = (BUNDLE.d / 2) * bounds.s, cy = Math.cos(yaw), sy = Math.sin(yaw);
+        // two boxes: where the held saree is drawn right now (lifted — what the player is looking at) and its floor footprint
+        const boxes = [p3.y, 0].map(h => {
+          let l = 1e9, t = 1e9, rr = -1e9, bb = -1e9;
+          for (const [ax, az] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+            const wx = p3.x + ax * hw * cy + az * hd * sy, wz = p3.z - ax * hw * sy + az * hd * cy;
+            const n = new THREE.Vector3(wx, h, wz).project(camera);
+            const px = rc.left + ((n.x + 1) / 2) * rc.width, py = rc.top + ((1 - n.y) / 2) * rc.height;
+            l = Math.min(l, px); rr = Math.max(rr, px); t = Math.min(t, py); bb = Math.max(bb, py);
+          }
+          return [l, t, rr, bb] as [number, number, number, number];
+        });
+        releaseRef.current?.(d.key, u.clientX, u.clientY, boxes);
+      }
       document.body.style.cursor = '';
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', end);
@@ -933,11 +952,19 @@ function Warm({ ready }: { ready: boolean }) {
 /* ------------------------------------------------------------------ scene */
 
 function World({ bounds, filter, arcs, dropZone, onDropZone, zoneApi }: DrapeSceneProps & { bounds: Bounds }) {
-  const { startDrag, dragging } = useDragController(bounds, (key, x, y) => {
+  const { startDrag, dragging } = useDragController(bounds, (key, x, y, boxes) => {
     const el = dropZone?.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
-    if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) onDropZone?.(key as Saree['id']);
+    const mx = r.width * 0.08, my = r.height * 0.12;      // a little forgiveness around the panel
+    const inPanel = (px: number, py: number) => px >= r.left - mx && px <= r.right + mx && py >= r.top - my && py <= r.bottom + my;
+    // overlap of the saree (as drawn lifted, or on the floor) with the panel, as a share of the panel
+    const overlap = ([l, t, rr, bb]: [number, number, number, number]) => {
+      const ow = Math.max(0, Math.min(rr, r.right) - Math.max(l, r.left)), oh = Math.max(0, Math.min(bb, r.bottom) - Math.max(t, r.top));
+      return (ow * oh) / (r.width * r.height);
+    };
+    const centred = boxes.some(([l, t, rr, bb]) => inPanel((l + rr) / 2, (t + bb) / 2));
+    if (inPanel(x, y) || centred || boxes.some(bx => overlap(bx) > 0.3)) onDropZone?.(key as Saree['id']);
   });
 
   const petals = useRef(new Map<string, RapierRigidBody>());
