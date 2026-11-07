@@ -106,8 +106,6 @@ export interface FabricUniforms {
   /** cos, sin of the support's yaw relative to this bundle */
   uSupRot: { value: THREE.Vector2 };
   uSag: { value: number };
-  /** S-bend along the length (+x end dips, −x end rises) — used when the box draws a saree in */
-  uBend: { value: number };
   uHalf: { value: THREE.Vector3 };
 }
 
@@ -122,7 +120,6 @@ export function makeFabricUniforms(half: THREE.Vector3): FabricUniforms {
     uSup: { value: new THREE.Vector4() },
     uSupRot: { value: new THREE.Vector2(1, 0) },
     uSag: { value: 0 },
-    uBend: { value: 0 },
     uHalf: { value: half }
   };
 }
@@ -142,7 +139,7 @@ export function applyFabricDeform(material: THREE.Material, U: FabricUniforms) {
       .replace(
         '#include <common>',
         `#include <common>
-        uniform float uTime; uniform vec3 uLag; uniform float uRipple; uniform float uSlump; uniform float uHold; uniform vec2 uGrab; uniform vec4 uSup; uniform vec2 uSupRot; uniform float uSag; uniform float uBend; uniform vec3 uHalf;`
+        uniform float uTime; uniform vec3 uLag; uniform float uRipple; uniform float uSlump; uniform float uHold; uniform vec2 uGrab; uniform vec4 uSup; uniform vec2 uSupRot; uniform float uSag; uniform vec3 uHalf;`
       )
       .replace(
         '#include <begin_vertex>',
@@ -168,11 +165,7 @@ export function applyFabricDeform(material: THREE.Material, U: FabricUniforms) {
         // hinge at the support's edge: bends from the edge outward, deeper the further it overhangs
         float sag = uSag * pow(clamp(over / 0.95, 0.0, 1.0), 1.1);
         transformed.y -= sag * uHalf.y * 2.3;
-        transformed.xz -= normalize(pl + 1e-4) * sag * 0.12;
-        // S-bend: the leading (+x) end dips and curls under while the trailing end lifts, like cloth being drawn down
-        float qb = clamp(q.x, -1.0, 1.0);
-        transformed.y += uBend * uHalf.x * (0.3 * sin(3.14159 * qb) - 0.42 * qb - 0.12 * qb * qb);
-        transformed.x *= 1.0 - 0.08 * uBend * qb * qb;`
+        transformed.xz -= normalize(pl + 1e-4) * sag * 0.12;`
       );
   };
   material.customProgramCacheKey = () => 'saree-fabric';

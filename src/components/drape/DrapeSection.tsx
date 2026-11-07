@@ -16,15 +16,6 @@ const hasWebGL = () => {
   }
 };
 
-/** The popup shows the saree on its own (the folded cut-out), not on a model — same for all five. */
-const BOX_PORTRAIT: Record<Saree['id'], { src: string; cover: boolean }> = {
-  maroon: { src: '/drape/cut-maroon.webp', cover: false },
-  ivory: { src: '/drape/cut-ivory.webp', cover: false },
-  navy: { src: '/drape/cut-navy.webp', cover: false },
-  yellow: { src: '/drape/cut-yellow.webp', cover: false },
-  black: { src: '/drape/cut-black.webp', cover: false }
-};
-
 function Pill({ active, children, onClick, dot }: { active?: boolean; children: React.ReactNode; onClick: () => void; dot?: string }) {
   return (
     <button
@@ -75,21 +66,6 @@ export function DrapeSection() {
   const [filter, setFilter] = useState<Tag | null>(null);
   const [sceneKey, setSceneKey] = useState(0);
   const arcs = useRef<HTMLDivElement>(null);
-  // the wooden box: a saree dropped into it opens this popup; closing it sends the saree back out
-  const boxApi = useRef<{ spit?: () => void }>({});
-  const [boxed, setBoxed] = useState<Saree['id'] | null>(null);
-  const [showBox, setShowBox] = useState(false);
-  const closeBox = () => {
-    setShowBox(false);
-    globalThis.setTimeout(() => { setBoxed(null); boxApi.current.spit?.(); }, 420);
-  };
-  useEffect(() => {
-    if (!boxed) return;
-    const id = requestAnimationFrame(() => setShowBox(true));
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && closeBox();
-    window.addEventListener('keydown', onKey);
-    return () => { cancelAnimationFrame(id); window.removeEventListener('keydown', onKey); };
-  }, [boxed]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const el = root.current!;
@@ -155,7 +131,7 @@ export function DrapeSection() {
         {canPlay ? (
           mounted && (
             <Suspense fallback={null}>
-              <DrapeScene key={sceneKey} active={active} filter={filter} arcs={arcs} boxApi={boxApi} onBoxOpen={setBoxed} onContextLost={() => setSceneKey(k => k + 1)} />
+              <DrapeScene key={sceneKey} active={active} filter={filter} arcs={arcs} onContextLost={() => setSceneKey(k => k + 1)} />
             </Suspense>
           )
         ) : (
@@ -174,52 +150,6 @@ export function DrapeSection() {
           <img src="/drape/arc-small.png" alt="" width="34" height="33" draggable={false} className="absolute left-0 top-0 block max-w-none" />
         </span>
       </div>
-
-      {/* the saree from the box, shown on its model */}
-      {boxed && (() => {
-        const sr = SAREES.find(x => x.id === boxed)!;
-        const img = BOX_PORTRAIT[boxed];
-        return (
-          <div
-            className={`absolute inset-0 z-20 flex items-center justify-center bg-blush/70 px-6 backdrop-blur-md transition-opacity duration-500 ease-silk ${showBox ? 'opacity-100' : 'opacity-0'}`}
-            onClick={closeBox}
-            role="dialog"
-            aria-modal="true"
-            aria-label={sr.name}
-          >
-            <div
-              className={`relative flex w-full max-w-4xl flex-col items-center gap-8 md:flex-row md:items-end md:gap-14 transition-[translate,opacity] duration-700 ease-silk ${showBox ? 'translate-y-0 opacity-100' : 'translate-y-6 opacity-0'}`}
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="relative h-[40vh] w-full max-w-md md:h-[56vh]">
-                <img src={img.src} alt={sr.name} className="absolute inset-0 h-full w-full scale-[1.3] object-contain object-center drop-shadow-[0_22px_26px_rgba(90,42,30,0.22)]" draggable={false} />
-              </div>
-              <div className="max-w-sm pb-4 text-center md:text-left">
-                <p className="kicker text-gold">From the box</p>
-                <h3 className="mt-4 font-serif text-[clamp(2.4rem,4.4vw,3.8rem)] font-medium italic leading-none text-ink">{sr.name}</h3>
-                <span className="mx-auto mt-6 mb-5 block h-[2px] w-10 bg-gold md:mx-0" />
-                <p className="text-[0.95rem] tracking-wide text-ink-soft">{sr.fabric}</p>
-                <p className="mt-3 text-lg leading-snug text-ink">{sr.note}</p>
-                <a
-                  href="#collections"
-                  onClick={e => { e.preventDefault(); closeBox(); globalThis.setTimeout(() => scrollToTarget('#collections'), 450); }}
-                  className="mt-8 inline-flex items-center gap-2 border-b border-gold pb-1 font-medium text-gold"
-                >
-                  View in Collections <span aria-hidden>→</span>
-                </a>
-              </div>
-              <button
-                type="button"
-                onClick={closeBox}
-                aria-label="Close and return the saree"
-                className="absolute -top-2 right-0 grid h-10 w-10 place-items-center text-ink/70 transition-colors hover:text-ink md:-top-6 md:-right-6"
-              >
-                <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden><path d="M5 5l14 14M19 5L5 19" /></svg>
-              </button>
-            </div>
-          </div>
-        );
-      })()}
 
       {/* overlay UI (pointer-events only on controls so drapes can be grabbed through the copy) */}
       <div className="pointer-events-none absolute inset-0 px-6 py-8 md:px-[5.6vw] md:py-10">
