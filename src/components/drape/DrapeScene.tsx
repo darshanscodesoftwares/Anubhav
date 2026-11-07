@@ -984,10 +984,10 @@ function World({ bounds, filter, arcs, dropZone, onDropZone, zoneApi }: DrapeSce
       const TOT = { x: -5.4 * Math.cos(th) * m, y: 0.25 * m, z: -6.6 * Math.sin(th) * m };
       const D = 0.9, t0 = performance.now();
       let last = t0;
-      const id = globalThis.setInterval(() => {
+      const iv = globalThis.setInterval(() => {
         const now = performance.now(), age = (now - t0) / 1000, dt = (now - last) / 1000;
         last = now;
-        if (age >= D) { globalThis.clearInterval(id); return; }
+        if (age >= D) { globalThis.clearInterval(iv); return; }
         const k = Math.sin((Math.PI * age) / D) ** 2 * (2 / D) * dt;
         b.applyImpulse({ x: TOT.x * k, y: TOT.y * k, z: TOT.z * k }, true);
       }, 16);
