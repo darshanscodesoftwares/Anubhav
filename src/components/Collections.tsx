@@ -1,9 +1,10 @@
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useGSAP } from '@gsap/react';
 import { Lotus } from './Logo';
 import { FILTERS, PIECES, type Filter, type Piece } from '../data/collection';
+import { QuickBuy } from './QuickBuy';
 
 function Heart({ on }: { on: boolean }) {
   return (
@@ -84,6 +85,8 @@ export function Collections() {
   const grid = useRef<HTMLDivElement>(null);
   const [filter, setFilter] = useState<Filter>('All');
   const [saved, setSaved] = useState<Record<string, boolean>>({});
+  const [open, setOpen] = useState<Piece | null>(null);
+  const closeQuick = useCallback(() => setOpen(null), []);
   const first = useRef(true);
 
   const shown = PIECES.filter(p => filter === 'All' || p.tags.includes(filter));
@@ -139,7 +142,7 @@ export function Collections() {
 
       <div ref={grid} className="mt-10 grid grid-cols-2 gap-x-5 gap-y-12 md:mt-14 md:gap-x-10 lg:grid-cols-4">
         {shown.map(piece => (
-          <article key={piece.id} className="js-reveal js-piece group">
+          <article key={piece.id} className="js-reveal js-piece group cursor-pointer" onClick={() => setOpen(piece)} onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget && setOpen(piece)} tabIndex={0} role="button" aria-label={`${piece.name}, quick view`}>
             <PieceImage piece={piece} />
             <div className="mt-3 flex items-start justify-between gap-3">
               <h3 className="font-serif text-[1.35rem] font-medium leading-tight">{piece.name}</h3>
@@ -147,7 +150,7 @@ export function Collections() {
                 type="button"
                 aria-label={saved[piece.id] ? 'Remove from saved' : 'Save'}
                 aria-pressed={!!saved[piece.id]}
-                onClick={() => setSaved(s => ({ ...s, [piece.id]: !s[piece.id] }))}
+                onClick={e => { e.stopPropagation(); setSaved(s => ({ ...s, [piece.id]: !s[piece.id] })); }}
                 className={`mt-1 shrink-0 transition-colors duration-300 ${saved[piece.id] ? 'text-gold' : 'text-ink/60 hover:text-gold'}`}
               >
                 <Heart on={!!saved[piece.id]} />
@@ -158,6 +161,7 @@ export function Collections() {
           </article>
         ))}
       </div>
+      <QuickBuy piece={open} saved={!!(open && saved[open.id])} onSave={() => open && setSaved(v => ({ ...v, [open.id]: !v[open.id] }))} onClose={closeQuick} />
     </section>
   );
 }
