@@ -36,7 +36,11 @@ interface Entry {
   release?: () => void;
 }
 
-interface Bounds { cx: number; cz: number; hx: number; hz: number; s: number }
+/** The section is `EXT` × the stage height: the extra band below the original framing is extra play floor. */
+export const EXT = 1.2;
+
+/** `zNear` = nearest z a body may reach (the original play area, plus the extra band below it) */
+interface Bounds { cx: number; cz: number; hx: number; hz: number; s: number; zNear: number }
 
 interface Ctx {
   startDrag: (e: Entry, ev: ThreeEvent<PointerEvent>) => void;
@@ -177,42 +181,55 @@ function Rig({ children }: { children: (b: Bounds) => React.ReactNode }) {
   const [bounds, setBounds] = useState<Bounds | null>(null);
 
   useEffect(() => {
-    const aspect = size.width / size.height;
+    // `size` is the whole (taller) canvas; the original framing is its top 1/EXT
+    const stageH = size.height / EXT;
+    const aspect = size.width / stageH;
     const cam = camera as THREE.PerspectiveCamera;
     // pull back on narrow screens so the play area stays usable
     const k = aspect < 1 ? 1.45 : aspect < 1.4 ? 1.2 : 1;
-    cam.fov = 30;
+    const fov0 = 30;
     // lower, more frontal angle like the design board (≈40°), so the folds and borders face the viewer
-    cam.position.set(0, 8.6 * k, 10.6 * k);
-    cam.lookAt(0, 0, 1.0 * k);
+    const place = (c: THREE.PerspectiveCamera) => { c.position.set(0, 8.6 * k, 10.6 * k); c.lookAt(0, 0, 1.0 * k); };
+    // reference camera = the original (stage-only) framing
+    const cam0 = new THREE.PerspectiveCamera(fov0, aspect, 0.5, 60);
+    place(cam0); cam0.updateProjectionMatrix(); cam0.updateMatrixWorld();
+    // real camera: same pixel scale and same top edge, but a taller frustum reaching further down the floor
+    const fov2 = (2 * Math.atan(Math.tan((fov0 * Math.PI) / 360) * EXT) * 180) / Math.PI;
+    cam.fov = fov2;
+    place(cam);
+    cam.rotateX(-((fov2 - fov0) * Math.PI) / 360);
     cam.updateProjectionMatrix();
     cam.updateMatrixWorld();
     // project screen corners onto the floor to find the visible play area
     const ray = new THREE.Raycaster();
     const floor = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-    const hit = (x: number, y: number) => {
-      ray.setFromCamera(new THREE.Vector2(x, y), cam);
+    const hit = (c: THREE.Camera, x: number, y: number) => {
+      ray.setFromCamera(new THREE.Vector2(x, y), c);
       return ray.ray.intersectPlane(floor, new THREE.Vector3())!;
     };
-    const far = [hit(-1, 0.86), hit(1, 0.86)];
-    const near = [hit(-1, -1), hit(1, -1)];
+    const far = [hit(cam0, -1, 0.86), hit(cam0, 1, 0.86)];
+    const near = [hit(cam0, -1, -1), hit(cam0, 1, -1)];
+    const nearExt = hit(cam, 0, -1);
     const hx = Math.min(Math.abs(far[0].x), Math.abs(far[1].x)) * 0.94;
     const z0 = far[0].z, z1 = near[0].z;
-    setBounds({ cx: 0, cz: (z0 + z1) / 2, hx, hz: ((z1 - z0) / 2) * 0.86, s: THREE.MathUtils.clamp(hx / 4.6, 0.62, 1) });
+    const hz = ((z1 - z0) / 2) * 0.86;
+    const zNear = z0 + (nearExt.z - z0) * 0.93;
+    setBounds({ cx: 0, cz: (z0 + z1) / 2, hx, hz, s: THREE.MathUtils.clamp(hx / 4.6, 0.62, 1), zNear });
   }, [camera, size.width, size.height]);
 
   if (!bounds) return null;
-  const { cx, cz, hx, hz } = bounds;
+  const { cx, cz, hx, hz, zNear } = bounds;
   const T = 0.5;
+  const zc = (cz - hz + zNear) / 2, zh = (zNear - (cz - hz)) / 2;   // walls follow the extended floor
   return (
     <>
       <RigidBody type="fixed" colliders={false} friction={0.9} restitution={0.05}>
         <CuboidCollider args={[40, 0.5, 40]} position={[0, -0.5, 0]} />
-        <CuboidCollider args={[T, 6, hz + 2]} position={[cx - hx - T, 6, cz]} />
-        <CuboidCollider args={[T, 6, hz + 2]} position={[cx + hx + T, 6, cz]} />
+        <CuboidCollider args={[T, 6, zh + 2]} position={[cx - hx - T, 6, zc]} />
+        <CuboidCollider args={[T, 6, zh + 2]} position={[cx + hx + T, 6, zc]} />
         <CuboidCollider args={[hx + 2, 6, T]} position={[cx, 6, cz - hz - T]} />
-        <CuboidCollider args={[hx + 2, 6, T]} position={[cx, 6, cz + hz + T]} />
-        <CuboidCollider args={[hx + 2, T, hz + 2]} position={[cx, 7.5, cz]} />
+        <CuboidCollider args={[hx + 2, 6, T]} position={[cx, 6, zNear + T]} />
+        <CuboidCollider args={[hx + 2, T, zh + 2]} position={[cx, 7.5, zc]} />
       </RigidBody>
       {children(bounds)}
     </>
@@ -279,7 +296,7 @@ function useDragController(bounds: Bounds, onRelease?: (key: string, x: number, 
     ray.setFromCamera(ndc.current, camera);
     if (!ray.ray.intersectPlane(plane, target)) return;
     target.x = THREE.MathUtils.clamp(target.x, bounds.cx - bounds.hx + 0.6, bounds.cx + bounds.hx - 0.6);
-    target.z = THREE.MathUtils.clamp(target.z, bounds.cz - bounds.hz + 0.5, bounds.cz + bounds.hz - 0.5);
+    target.z = THREE.MathUtils.clamp(target.z, bounds.cz - bounds.hz + 0.5, bounds.zNear - 0.5);
     const p = d.rb.translation();
     // heavy things lag the hand and have a top carry speed
     const gain = d.heavy ? 5.5 : 13, top = d.heavy ? 6.5 : 18;

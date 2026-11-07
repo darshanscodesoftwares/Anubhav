@@ -145,11 +145,11 @@ export function DrapeSection() {
     <section
       ref={root}
       id="drapes"
-      className="relative h-svh min-h-[640px] w-full overflow-hidden bg-[radial-gradient(ellipse_80%_70%_at_55%_45%,#fdf6f1,#f3e3da)]"
+      className="relative h-[calc(max(100svh,640px)*1.2)] w-full overflow-hidden bg-[radial-gradient(ellipse_80%_70%_at_55%_45%,#fdf6f1,#f3e3da)]"
       aria-label="Pick a drape — interactive saree play area"
     >
       {/* Copy sits BEHIND the 3D canvas so drapes and petals pass in front of it (canvas is transparent). */}
-      <div className="pointer-events-none absolute inset-0 px-6 py-8 md:px-[5.6vw] md:py-10">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[max(100svh,640px)] px-6 py-8 md:px-[5.6vw] md:py-10">
         {canPlay && (
           <div
             ref={zone}
@@ -215,7 +215,7 @@ export function DrapeSection() {
         const on = pop.show;
         return (
           <div
-            className={`absolute inset-0 z-30 flex items-center justify-center bg-blush/70 px-6 transition-[opacity,backdrop-filter] duration-[800ms] ease-silk ${on ? 'opacity-100 backdrop-blur-md' : 'pointer-events-none opacity-0 backdrop-blur-0'}`}
+            className={`absolute inset-x-0 top-0 z-30 flex h-[max(100svh,640px)] items-center justify-center bg-blush/70 px-6 transition-[opacity,backdrop-filter] duration-[800ms] ease-silk ${on ? 'opacity-100 backdrop-blur-md' : 'pointer-events-none opacity-0 backdrop-blur-0'}`}
             onClick={closeDrop}
             role="dialog"
             aria-modal="true"
@@ -244,7 +244,7 @@ export function DrapeSection() {
       })()}
 
       {/* overlay UI (pointer-events only on controls so drapes can be grabbed through the copy) */}
-      <div className="pointer-events-none absolute inset-0 px-6 py-8 md:px-[5.6vw] md:py-10">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[max(100svh,640px)] px-6 py-8 md:px-[5.6vw] md:py-10">
         {canPlay && (
           <div className={`absolute bottom-[17%] right-6 aspect-square w-[clamp(138px,14vw,184px)] transition-opacity duration-500 ease-silk md:right-[5.6vw] ${drop?.phase === 'loading' ? 'opacity-100' : 'opacity-0'}`} aria-live="polite">
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-gold">
