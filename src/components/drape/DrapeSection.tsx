@@ -153,7 +153,7 @@ export function DrapeSection() {
         {canPlay && (
           <div
             ref={zone}
-            className="absolute bottom-[6%] left-6 aspect-square w-[clamp(138px,14vw,184px)] rounded-[20px] border border-gold/80 bg-blush/95 shadow-[0_18px_40px_-22px_rgba(90,42,30,0.35)] md:left-[5.6vw]"
+            className="absolute bottom-[6%] right-6 aspect-square w-[clamp(138px,14vw,184px)] rounded-[20px] border border-gold/80 bg-blush/95 shadow-[0_18px_40px_-22px_rgba(90,42,30,0.35)] md:right-[5.6vw]"
             aria-label="Drop zone: release a saree here to see its details"
           >
             <span className="absolute inset-[9%] rounded-[14px] border border-gold/25" aria-hidden />
@@ -179,7 +179,7 @@ export function DrapeSection() {
           <p className="text-[1.02rem] text-ink-soft">Lift one, let it go, and watch it settle.</p>
         </div>
 
-        <div className="js-drape-reveal absolute bottom-10 right-[5.6vw] hidden max-w-[15rem] text-right lg:block">
+        <div className="js-drape-reveal absolute bottom-10 left-[5.6vw] hidden max-w-[15rem] text-left lg:block">
           <p className="text-lg leading-snug text-ink">A soft study of silk,<br />weight and light.</p>
           <span className="invisible mt-4 inline-flex items-center gap-2 border-b pb-1 font-medium" aria-hidden>View Collection →</span>
         </div>
@@ -246,7 +246,7 @@ export function DrapeSection() {
       {/* overlay UI (pointer-events only on controls so drapes can be grabbed through the copy) */}
       <div className="pointer-events-none absolute inset-0 px-6 py-8 md:px-[5.6vw] md:py-10">
         {canPlay && (
-          <div className={`absolute bottom-[6%] left-6 aspect-square w-[clamp(138px,14vw,184px)] transition-opacity duration-500 ease-silk md:left-[5.6vw] ${drop?.phase === 'loading' ? 'opacity-100' : 'opacity-0'}`} aria-live="polite">
+          <div className={`absolute bottom-[6%] right-6 aspect-square w-[clamp(138px,14vw,184px)] transition-opacity duration-500 ease-silk md:right-[5.6vw] ${drop?.phase === 'loading' ? 'opacity-100' : 'opacity-0'}`} aria-live="polite">
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-gold">
               <span className="grid place-items-center rounded-full bg-blush/90 p-3 shadow-[0_0_30px_14px_rgba(243,228,220,0.9)]">
                 <span className="block h-7 w-7 motion-safe:animate-spin rounded-full border border-gold/30 border-t-gold" />
@@ -268,7 +268,7 @@ export function DrapeSection() {
           ))}
         </div>
 
-        <div className="absolute bottom-10 right-[5.6vw] hidden max-w-[15rem] text-right lg:block">
+        <div className="absolute bottom-10 left-[5.6vw] hidden max-w-[15rem] text-left lg:block">
           <p className="invisible text-lg leading-snug" aria-hidden>A soft study of silk,<br />weight and light.</p>
           <a
             href="#collections"
