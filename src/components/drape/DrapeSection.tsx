@@ -213,13 +213,13 @@ export function DrapeSection() {
         const on = pop.show;
         return (
           <div
-            className={`absolute inset-x-0 top-0 z-30 flex h-[max(100svh,640px)] items-center justify-center bg-blush/70 px-6 transition-[opacity,backdrop-filter] duration-[800ms] ease-silk ${on ? 'opacity-100 backdrop-blur-md' : 'pointer-events-none opacity-0 backdrop-blur-0'}`}
+            className={`absolute inset-0 z-30 flex items-start justify-center bg-blush/70 px-6 transition-[opacity,backdrop-filter] duration-[800ms] ease-silk ${on ? 'opacity-100 backdrop-blur-md' : 'pointer-events-none opacity-0 backdrop-blur-0'}`}
             onClick={closeDrop}
             role="dialog"
             aria-modal="true"
             aria-label={sr.name}
           >
-            <div className="relative flex w-full max-w-4xl flex-col items-center gap-8 md:flex-row md:gap-14" onClick={e => e.stopPropagation()}>
+            <div className="relative flex h-[max(100svh,640px)] w-full max-w-4xl flex-col items-center justify-center gap-8 md:flex-row md:gap-14" onClick={e => e.stopPropagation()}>
               <img
                 src={`/drape/cut-${sr.id}.webp`}
                 alt={sr.name}
