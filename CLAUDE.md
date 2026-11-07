@@ -359,6 +359,7 @@ Owner request: append an entry here after every change session.
 - **2026‑11‑07** — Owner: Buy Now "minimal and lighter": now a flat soft-tan fill `#ecd5b8` (hover `#e6cba9`) with deep-brown text `#6b4a22`, no gradient, no shadow, no lift on hover (`QuickBuy.tsx`).
 - **2026‑11‑07** — Owner: the slide-off after closing the drop-panel popup should go in a random direction between screen-left and screen-up (a 90° quadrant). `zoneApi.eject` now picks θ ∈ [0, 90°] at random and applies `(−9·cosθ, +0.5, −11·sinθ)·m` (θ = 0 → straight left, 90° → straight up/away; ×11 on the depth axis because z is foreshortened on screen).
 - **2026‑11‑07** — Owner: the slide-off after the popup closes should be a little smoother and slower. `zoneApi.eject` no longer applies one instant impulse: the total push (`(−5.4·cosθ, 0.25, −6.6·sinθ)·m`, ≈ 60 % of before) is spread over 0.9 s with a sin² swell (16 ms steps, `∫ = D/2` normalised), so the saree eases into motion and glides off. Direction is still random within the left-to-up quadrant.
+- **2026‑11‑07** — Owner: the smooth/slow slide-off barely moved the saree ("not pushing at all"), so `DrapeScene.tsx` was reverted to `d658927`: one instant impulse `(−9·cosθ, 0.5, −11·sinθ)·m` with θ random in [0, 90°]. (The 0.9 s sin²-eased version, `a1c4cb2`/`9f390cd`, is in history.) If a gentler push is wanted later, keep the strength and only add a short ramp, or raise the strength — a spread-out, weaker push is eaten by the bundle's heavy damping.
 
 ## Next / ideas
 

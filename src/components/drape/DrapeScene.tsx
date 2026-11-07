@@ -979,18 +979,7 @@ function World({ bounds, filter, arcs, dropZone, onDropZone, zoneApi }: DrapeSce
       // random direction anywhere in the 90° between screen-left (−x) and screen-up/away (−z); a little stronger toward
       // the top because depth is foreshortened on screen
       const th = Math.random() * (Math.PI / 2);
-      // a smooth, slower push: the same kind of shove spread over ~0.9 s with a sin² swell (instead of one instant kick),
-      // and ~60 % of the old strength, so it glides off the panel
-      const TOT = { x: -5.4 * Math.cos(th) * m, y: 0.25 * m, z: -6.6 * Math.sin(th) * m };
-      const D = 0.9, t0 = performance.now();
-      let last = t0;
-      const iv = globalThis.setInterval(() => {
-        const now = performance.now(), age = (now - t0) / 1000, dt = (now - last) / 1000;
-        last = now;
-        if (age >= D) { globalThis.clearInterval(iv); return; }
-        const k = Math.sin((Math.PI * age) / D) ** 2 * (2 / D) * dt;
-        b.applyImpulse({ x: TOT.x * k, y: TOT.y * k, z: TOT.z * k }, true);
-      }, 16);
+      b.applyImpulse({ x: -9 * Math.cos(th) * m, y: 0.5 * m, z: -11 * Math.sin(th) * m }, true);
     };
   }, [zoneApi]);
 
