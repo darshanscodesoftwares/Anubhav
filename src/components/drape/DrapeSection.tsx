@@ -153,20 +153,20 @@ export function DrapeSection() {
         {canPlay && (
           <div
             ref={zone}
-            className="absolute bottom-[17%] right-6 aspect-square w-[clamp(138px,14vw,184px)] rounded-[20px] border border-gold/80 bg-blush/95 shadow-[0_18px_40px_-22px_rgba(90,42,30,0.35)] md:right-[5.6vw] [transform:perspective(520px)_rotateX(24deg)]"
+            className="absolute bottom-[17%] right-6 aspect-square w-[clamp(138px,14vw,184px)] rounded-[20px] border-[1.5px] border-[#94692a] bg-blush shadow-[0_2px_0_rgba(148,105,42,0.18),0_14px_26px_-16px_rgba(90,42,30,0.55)] antialiased md:right-[5.6vw] [transform:perspective(520px)_rotateX(24deg)_translateZ(0)] [backface-visibility:hidden]"
             aria-label="Drop zone: release a saree here to see its details"
           >
-            <span className="absolute inset-[9%] rounded-[14px] border border-gold/25" aria-hidden />
+            <span className="absolute inset-[9%] rounded-[14px] border border-[#94692a]/45" aria-hidden />
             <div className={`absolute inset-0 transition-opacity duration-300 ${drop?.phase === 'loading' ? 'opacity-30' : 'opacity-100'}`}>
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 px-3 text-center text-gold">
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 px-3 text-center text-[#8a6224]">
                 <svg viewBox="0 0 64 44" className="h-[30%] w-auto" fill="currentColor" aria-hidden>
                   <path d="M6 40 L 18 6 L 32 4 L 46 6 L 58 40 L 46 36 L 32 40 L 18 36 Z" opacity=".92" />
                   <path d="M18 6 L 32 10 L 46 6 M 32 10 L 32 40" fill="none" stroke="#f3e4dc" strokeWidth="1.1" strokeLinecap="round" opacity=".7" />
                   <circle cx="22" cy="18" r="1.6" fill="#f3e4dc" opacity=".7" />
                   <circle cx="42" cy="18" r="1.6" fill="#f3e4dc" opacity=".7" />
                 </svg>
-                <span className="font-serif text-[0.95rem] italic leading-tight text-ink/80">Place Drape Here</span>
-                <Lotus className="h-3 w-5 text-gold/80" />
+                <span className="font-serif text-[0.95rem] font-medium italic leading-tight text-ink">Place Drape Here</span>
+                <Lotus className="h-3 w-5 text-[#8a6224]" />
               </div>
             </div>
           </div>
