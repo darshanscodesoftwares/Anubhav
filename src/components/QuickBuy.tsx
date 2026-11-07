@@ -109,7 +109,7 @@ export function QuickBuy({ piece, saved, onSave, onClose }: { piece: Piece | nul
                 <button type="button" onClick={() => setQty(q => Math.min(9, q + 1))} aria-label="More" className="grid h-10 w-11 place-items-center text-ink/80 hover:text-ink">+</button>
               </div>
             </div>
-            <button type="button" onClick={() => confirm('buy')} className="mt-6 flex h-14 w-full items-center justify-center gap-3 rounded-[12px] bg-[linear-gradient(180deg,#b27a35,#9a6528)] font-serif text-[1.25rem] text-[#fdf3ea] shadow-[0_10px_20px_-12px_rgba(120,70,20,0.8)] transition-transform duration-300 hover:-translate-y-0.5">
+            <button type="button" onClick={() => confirm('buy')} className="mt-6 flex h-14 w-full items-center justify-center gap-3 rounded-[12px] bg-[linear-gradient(180deg,#c9a06a,#b98d56)] font-serif text-[1.25rem] text-[#fdf6ee] shadow-[0_8px_16px_-12px_rgba(120,80,30,0.45)] transition-transform duration-300 hover:-translate-y-0.5">
               {done === 'buy' ? 'Reserved ✓' : 'Buy Now'}
             </button>
             <button type="button" onClick={() => confirm('cart')} className="mt-3 flex h-14 w-full items-center justify-center gap-3 rounded-[12px] border border-[#a4702e] font-serif text-[1.25rem] text-[#7d5220] transition-colors duration-300 hover:bg-[#f3dccf]/60">
