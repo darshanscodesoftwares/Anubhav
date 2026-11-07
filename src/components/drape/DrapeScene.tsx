@@ -976,7 +976,10 @@ function World({ bounds, filter, arcs, dropZone, onDropZone, zoneApi }: DrapeSce
       if (!b) return;
       const m = b.mass();
       // a gentle shove up-and-left (away from the panel on the right) that the saree's heavy damping settles in ~1.5 units
-      b.applyImpulse({ x: -9 * m, y: 0.5 * m, z: -2.2 * m }, true);
+      // random direction anywhere in the 90° between screen-left (−x) and screen-up/away (−z); a little stronger toward
+      // the top because depth is foreshortened on screen
+      const th = Math.random() * (Math.PI / 2);
+      b.applyImpulse({ x: -9 * Math.cos(th) * m, y: 0.5 * m, z: -11 * Math.sin(th) * m }, true);
     };
   }, [zoneApi]);
 
