@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { Lotus } from '../Logo';
@@ -66,6 +66,26 @@ export function DrapeSection() {
   const [filter, setFilter] = useState<Tag | null>(null);
   const [sceneKey, setSceneKey] = useState(0);
   const arcs = useRef<HTMLDivElement>(null);
+  // square drop zone: a saree released on it shows a short loader, then its details
+  const zone = useRef<HTMLDivElement>(null);
+  const [drop, setDrop] = useState<{ id: Saree['id']; phase: 'loading' | 'open' } | null>(null);
+  const dropTimer = useRef(0);
+  const onDropZone = useCallback((id: Saree['id']) => {
+    setDrop(d => {
+      if (d) return d;
+      globalThis.clearTimeout(dropTimer.current);
+      dropTimer.current = globalThis.setTimeout(() => setDrop(x => (x && x.id === id ? { id, phase: 'open' } : x)), 1300) as unknown as number;
+      return { id, phase: 'loading' };
+    });
+  }, []);
+  useEffect(() => () => globalThis.clearTimeout(dropTimer.current), []);
+  const closeDrop = () => { globalThis.clearTimeout(dropTimer.current); setDrop(null); };
+  useEffect(() => {
+    if (drop?.phase !== 'open') return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && closeDrop();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [drop?.phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const el = root.current!;
@@ -131,7 +151,7 @@ export function DrapeSection() {
         {canPlay ? (
           mounted && (
             <Suspense fallback={null}>
-              <DrapeScene key={sceneKey} active={active} filter={filter} arcs={arcs} onContextLost={() => setSceneKey(k => k + 1)} />
+              <DrapeScene key={sceneKey} active={active} filter={filter} arcs={arcs} dropZone={zone} onDropZone={onDropZone} onContextLost={() => setSceneKey(k => k + 1)} />
             </Suspense>
           )
         ) : (
@@ -151,8 +171,62 @@ export function DrapeSection() {
         </span>
       </div>
 
+      {/* the released saree's details */}
+      {drop?.phase === 'open' && (() => {
+        const sr = SAREES.find(x => x.id === drop.id)!;
+        return (
+          <div
+            className="absolute inset-0 z-30 flex items-center justify-center bg-blush/70 px-6 backdrop-blur-md"
+            onClick={closeDrop}
+            role="dialog"
+            aria-modal="true"
+            aria-label={sr.name}
+          >
+            <div className="relative flex w-full max-w-4xl flex-col items-center gap-8 md:flex-row md:gap-14" onClick={e => e.stopPropagation()}>
+              <img src={`/drape/cut-${sr.id}.webp`} alt={sr.name} draggable={false} className="h-[40vh] w-auto max-w-[80vw] object-contain drop-shadow-[0_22px_26px_rgba(90,42,30,0.22)] md:h-[56vh]" />
+              <div className="max-w-sm text-center md:text-left">
+                <p className="kicker text-gold">Your selection</p>
+                <h3 className="mt-4 font-serif text-[clamp(2.4rem,4.4vw,3.8rem)] font-medium italic leading-none text-ink">{sr.name}</h3>
+                <span className="mx-auto mt-6 mb-5 block h-[2px] w-10 bg-gold md:mx-0" />
+                <p className="text-[0.95rem] tracking-wide text-ink-soft">{sr.fabric}</p>
+                <p className="mt-3 text-lg leading-snug text-ink">{sr.note}</p>
+              </div>
+              <button type="button" onClick={closeDrop} aria-label="Close" className="absolute -top-2 right-0 grid h-10 w-10 place-items-center text-ink/70 transition-colors hover:text-ink md:-top-6 md:-right-6">
+                <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden><path d="M5 5l14 14M19 5L5 19" /></svg>
+              </button>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* overlay UI (pointer-events only on controls so drapes can be grabbed through the copy) */}
       <div className="pointer-events-none absolute inset-0 px-6 py-8 md:px-[5.6vw] md:py-10">
+        {canPlay && (
+          <div
+            ref={zone}
+            className="absolute bottom-[6%] left-6 aspect-square w-[clamp(138px,14vw,184px)] rounded-[20px] border border-gold/80 bg-blush/95 shadow-[0_18px_40px_-22px_rgba(90,42,30,0.35)] md:left-[5.6vw]"
+            aria-label="Drop zone: release a saree here to see its details"
+          >
+            <span className="absolute inset-[9%] rounded-[14px] border border-gold/25" aria-hidden />
+            {drop?.phase === 'loading' ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-gold">
+                <span className="h-7 w-7 motion-safe:animate-spin rounded-full border border-gold/30 border-t-gold" />
+                <span className="kicker text-[0.62rem] text-gold">Unfolding</span>
+              </div>
+            ) : (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 px-3 text-center text-gold">
+                <svg viewBox="0 0 64 44" className="h-[30%] w-auto" fill="currentColor" aria-hidden>
+                  <path d="M6 40 L 18 6 L 32 4 L 46 6 L 58 40 L 46 36 L 32 40 L 18 36 Z" opacity=".92" />
+                  <path d="M18 6 L 32 10 L 46 6 M 32 10 L 32 40" fill="none" stroke="#f3e4dc" strokeWidth="1.1" strokeLinecap="round" opacity=".7" />
+                  <circle cx="22" cy="18" r="1.6" fill="#f3e4dc" opacity=".7" />
+                  <circle cx="42" cy="18" r="1.6" fill="#f3e4dc" opacity=".7" />
+                </svg>
+                <span className="font-serif text-[0.95rem] italic leading-tight text-ink/80">Place Drape Here</span>
+                <Lotus className="h-3 w-5 text-gold/80" />
+              </div>
+            )}
+          </div>
+        )}
         <div className="js-drape-reveal flex items-center gap-3 text-ink">
           <Lotus className="h-6 w-10 text-gold" />
           <span className="font-serif text-xl tracking-wide">anubhav <span className="text-ink/50">/</span> atelier</span>

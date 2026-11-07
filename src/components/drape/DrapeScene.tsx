@@ -21,6 +21,9 @@ export interface DrapeSceneProps {
   filter: Tag | null;
   /** DOM overlay (two arc groups) the scene drives while a saree is held — 2D 'tension arcs' */
   arcs?: React.RefObject<HTMLDivElement | null>;
+  /** the square drop zone (DOM, in the section): a saree released over it is reported via onDropZone */
+  dropZone?: React.RefObject<HTMLElement | null>;
+  onDropZone?: (id: Saree['id']) => void;
 }
 
 interface Entry {
@@ -224,9 +227,11 @@ const GRAVITY = 14;
 /** Petals are feather-light: barely any gravity + high air drag → a gust darts them away, then they drift down slowly. */
 const PETAL_GRAVITY = 0.16;
 
-function useDragController(bounds: Bounds) {
+function useDragController(bounds: Bounds, onRelease?: (key: string, x: number, y: number) => void) {
   const { camera, gl } = useThree();
   const dragging = useRef<Entry | null>(null);
+  const releaseRef = useRef(onRelease);
+  releaseRef.current = onRelease;
   const ndc = useRef(new THREE.Vector2());
   const ray = useMemo(() => new THREE.Raycaster(), []);
   const plane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 1, 0), -LIFT), []);
@@ -246,9 +251,10 @@ function useDragController(bounds: Bounds) {
     e.rb.setGravityScale(0, true);
     document.body.style.cursor = 'grabbing';
     const move = (m: PointerEvent) => setNdc(m.clientX, m.clientY);
-    const end = () => {
+    const end = (u?: PointerEvent) => {
       const d = dragging.current;
       dragging.current = null;
+      if (d?.heavy && u) releaseRef.current?.(d.key, u.clientX, u.clientY);
       document.body.style.cursor = '';
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', end);
@@ -907,8 +913,13 @@ function Warm({ ready }: { ready: boolean }) {
 
 /* ------------------------------------------------------------------ scene */
 
-function World({ bounds, filter, arcs }: DrapeSceneProps & { bounds: Bounds }) {
-  const { startDrag, dragging } = useDragController(bounds);
+function World({ bounds, filter, arcs, dropZone, onDropZone }: DrapeSceneProps & { bounds: Bounds }) {
+  const { startDrag, dragging } = useDragController(bounds, (key, x, y) => {
+    const el = dropZone?.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) onDropZone?.(key as Saree['id']);
+  });
 
   const petals = useRef(new Map<string, RapierRigidBody>());
   const bundles = useRef(new Map<string, RapierRigidBody>());
