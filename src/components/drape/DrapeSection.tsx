@@ -153,14 +153,14 @@ export function DrapeSection() {
         {canPlay && (
           <div
             ref={zone}
-            className="absolute bottom-[17%] right-6 aspect-[1100/467] w-[clamp(230px,23vw,330px)] md:right-[5.6vw]"
+            className="absolute bottom-[17%] right-6 aspect-[1100/570] w-[clamp(196px,18vw,256px)] md:right-[5.6vw]"
             aria-label="Drop zone: release a saree here to see its details"
           >
             <img
               src="/drape/drop-panel.webp"
               alt=""
               draggable={false}
-              className={`h-full w-full select-none drop-shadow-[0_14px_16px_rgba(90,42,30,0.28)] transition-opacity duration-300 ${drop?.phase === 'loading' ? 'opacity-35' : 'opacity-100'}`}
+              className={`h-full w-full select-none object-fill [filter:saturate(0.62)_contrast(0.97)_drop-shadow(0_10px_12px_rgba(90,42,30,0.2))] transition-opacity duration-300 ${drop?.phase === 'loading' ? 'opacity-35' : 'opacity-100'}`}
             />
           </div>
         )}
@@ -239,7 +239,7 @@ export function DrapeSection() {
       {/* overlay UI (pointer-events only on controls so drapes can be grabbed through the copy) */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[max(100svh,640px)] px-6 py-8 md:px-[5.6vw] md:py-10">
         {canPlay && (
-          <div className={`absolute bottom-[17%] right-6 aspect-[1100/467] w-[clamp(230px,23vw,330px)] transition-opacity duration-500 ease-silk md:right-[5.6vw] ${drop?.phase === 'loading' ? 'opacity-100' : 'opacity-0'}`} aria-live="polite">
+          <div className={`absolute bottom-[17%] right-6 aspect-[1100/570] w-[clamp(196px,18vw,256px)] transition-opacity duration-500 ease-silk md:right-[5.6vw] ${drop?.phase === 'loading' ? 'opacity-100' : 'opacity-0'}`} aria-live="polite">
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-gold">
               <span className="grid place-items-center rounded-full bg-blush/90 p-3 shadow-[0_0_30px_14px_rgba(243,228,220,0.9)]">
                 <span className="block h-7 w-7 motion-safe:animate-spin rounded-full border border-gold/30 border-t-gold" />
