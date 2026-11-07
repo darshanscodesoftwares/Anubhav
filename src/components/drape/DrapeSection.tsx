@@ -79,13 +79,30 @@ export function DrapeSection() {
     });
   }, []);
   useEffect(() => () => globalThis.clearTimeout(dropTimer.current), []);
-  const closeDrop = () => { globalThis.clearTimeout(dropTimer.current); setDrop(null); };
+  // the popup stays mounted while it fades: `show` drives every transition (in on open, out on close)
+  const [pop, setPop] = useState<{ id: Saree['id']; show: boolean } | null>(null);
+  const popTimer = useRef(0);
   useEffect(() => {
     if (drop?.phase !== 'open') return;
+    globalThis.clearTimeout(popTimer.current);
+    setPop({ id: drop.id, show: false });
+    const a = requestAnimationFrame(() => requestAnimationFrame(() => setPop(p => (p ? { ...p, show: true } : p))));
+    return () => cancelAnimationFrame(a);
+  }, [drop?.phase, drop?.id]);
+  const closeDrop = () => {
+    globalThis.clearTimeout(dropTimer.current);
+    setDrop(null);
+    setPop(p => (p ? { ...p, show: false } : p));
+    globalThis.clearTimeout(popTimer.current);
+    popTimer.current = globalThis.setTimeout(() => setPop(null), 800) as unknown as number;
+  };
+  useEffect(() => () => globalThis.clearTimeout(popTimer.current), []);
+  useEffect(() => {
+    if (!pop?.show) return;
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && closeDrop();
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [drop?.phase]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pop?.show]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const el = root.current!;
@@ -193,26 +210,32 @@ export function DrapeSection() {
       </div>
 
       {/* the released saree's details */}
-      {drop?.phase === 'open' && (() => {
-        const sr = SAREES.find(x => x.id === drop.id)!;
+      {pop && (() => {
+        const sr = SAREES.find(x => x.id === pop.id)!;
+        const on = pop.show;
         return (
           <div
-            className="absolute inset-0 z-30 flex items-center justify-center bg-blush/70 px-6 backdrop-blur-md"
+            className={`absolute inset-0 z-30 flex items-center justify-center bg-blush/70 px-6 transition-[opacity,backdrop-filter] duration-[800ms] ease-silk ${on ? 'opacity-100 backdrop-blur-md' : 'pointer-events-none opacity-0 backdrop-blur-0'}`}
             onClick={closeDrop}
             role="dialog"
             aria-modal="true"
             aria-label={sr.name}
           >
             <div className="relative flex w-full max-w-4xl flex-col items-center gap-8 md:flex-row md:gap-14" onClick={e => e.stopPropagation()}>
-              <img src={`/drape/cut-${sr.id}.webp`} alt={sr.name} draggable={false} className="h-[40vh] w-auto max-w-[80vw] object-contain drop-shadow-[0_22px_26px_rgba(90,42,30,0.22)] md:h-[56vh]" />
-              <div className="max-w-sm text-center md:text-left">
+              <img
+                src={`/drape/cut-${sr.id}.webp`}
+                alt={sr.name}
+                draggable={false}
+                className={`h-[40vh] w-auto max-w-[80vw] object-contain drop-shadow-[0_22px_26px_rgba(90,42,30,0.22)] transition-[opacity,transform] duration-[1000ms] ease-silk md:h-[56vh] ${on ? 'translate-y-0 scale-100 opacity-100 delay-75' : 'translate-y-6 scale-[0.94] opacity-0'}`}
+              />
+              <div className={`max-w-sm text-center transition-[opacity,transform] duration-[900ms] ease-silk md:text-left ${on ? 'translate-y-0 opacity-100 delay-200' : 'translate-y-4 opacity-0'}`}>
                 <p className="kicker text-gold">Your selection</p>
                 <h3 className="mt-4 font-serif text-[clamp(2.4rem,4.4vw,3.8rem)] font-medium italic leading-none text-ink">{sr.name}</h3>
                 <span className="mx-auto mt-6 mb-5 block h-[2px] w-10 bg-gold md:mx-0" />
                 <p className="text-[0.95rem] tracking-wide text-ink-soft">{sr.fabric}</p>
                 <p className="mt-3 text-lg leading-snug text-ink">{sr.note}</p>
               </div>
-              <button type="button" onClick={closeDrop} aria-label="Close" className="absolute -top-2 right-0 grid h-10 w-10 place-items-center text-ink/70 transition-colors hover:text-ink md:-top-6 md:-right-6">
+              <button type="button" onClick={closeDrop} aria-label="Close" className={`absolute -top-2 right-0 grid h-10 w-10 place-items-center text-ink/70 transition-[opacity,color] duration-700 ease-silk hover:text-ink md:-top-6 md:-right-6 ${on ? 'opacity-100 delay-300' : 'opacity-0'}`}>
                 <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden><path d="M5 5l14 14M19 5L5 19" /></svg>
               </button>
             </div>
@@ -222,8 +245,8 @@ export function DrapeSection() {
 
       {/* overlay UI (pointer-events only on controls so drapes can be grabbed through the copy) */}
       <div className="pointer-events-none absolute inset-0 px-6 py-8 md:px-[5.6vw] md:py-10">
-        {canPlay && drop?.phase === 'loading' && (
-          <div className="absolute bottom-[6%] left-6 aspect-square w-[clamp(138px,14vw,184px)] md:left-[5.6vw]" aria-live="polite">
+        {canPlay && (
+          <div className={`absolute bottom-[6%] left-6 aspect-square w-[clamp(138px,14vw,184px)] transition-opacity duration-500 ease-silk md:left-[5.6vw] ${drop?.phase === 'loading' ? 'opacity-100' : 'opacity-0'}`} aria-live="polite">
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-gold">
               <span className="grid place-items-center rounded-full bg-blush/90 p-3 shadow-[0_0_30px_14px_rgba(243,228,220,0.9)]">
                 <span className="block h-7 w-7 motion-safe:animate-spin rounded-full border border-gold/30 border-t-gold" />
