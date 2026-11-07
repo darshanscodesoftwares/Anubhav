@@ -219,7 +219,8 @@ export function DrapeSection() {
             aria-modal="true"
             aria-label={sr.name}
           >
-            <div className="relative flex h-[max(100svh,640px)] w-full max-w-4xl flex-col items-center justify-center gap-8 md:flex-row md:gap-14" onClick={e => e.stopPropagation()}>
+            <div className="pointer-events-none flex h-[max(100svh,640px)] w-full items-center justify-center">
+            <div className="pointer-events-auto relative flex w-full max-w-4xl flex-col items-center gap-8 md:flex-row md:gap-14" onClick={e => e.stopPropagation()}>
               <img
                 src={`/drape/cut-${sr.id}.webp`}
                 alt={sr.name}
@@ -236,6 +237,7 @@ export function DrapeSection() {
               <button type="button" onClick={closeDrop} aria-label="Close" className={`absolute -top-2 right-0 grid h-10 w-10 place-items-center text-ink/70 transition-[opacity,color] duration-700 ease-silk hover:text-ink md:-top-6 md:-right-6 ${on ? 'opacity-100 delay-300' : 'opacity-0'}`}>
                 <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden><path d="M5 5l14 14M19 5L5 19" /></svg>
               </button>
+            </div>
             </div>
           </div>
         );
