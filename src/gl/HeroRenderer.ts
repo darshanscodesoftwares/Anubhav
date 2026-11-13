@@ -358,6 +358,17 @@ export class HeroRenderer {
     return [+(s.focus[0] + (cu - s.focus[0]) / REST_SCALE).toFixed(3), +(s.focus[1] + (cv - s.focus[1]) / REST_SCALE).toFixed(3)];
   }
 
+  /** Inverse of `pickUV`: where an image UV of the resting shot lands on the canvas (0–1 CSS coords). */
+  uvToScreen(index: number, u: number, v: number): Pt | null {
+    const s = this.shots[index];
+    if (!s) return null;
+    const va = this.canvas.clientWidth / this.canvas.clientHeight;
+    const sc = va > s.aspect ? [1, s.aspect / va] : [va / s.aspect, 1];
+    const cu = s.focus[0] + (u - s.focus[0]) * REST_SCALE;
+    const cv = s.focus[1] + (v - s.focus[1]) * REST_SCALE;
+    return [(cu - 0.5 - (1 - sc[0]) * (cropX(va, s.aspect, s.mobileX) - 0.5)) / sc[0] + 0.5, (cv - 0.5) / sc[1] + 0.5];
+  }
+
   dispose() {
     // Free GPU memory but keep the context: React StrictMode remounts reuse the same canvas.
     this.shots.forEach(s => {

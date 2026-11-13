@@ -66,6 +66,7 @@ export function HeroScroller({ ready, onReady }: { ready: boolean; onReady: () =
   const section = useRef<HTMLElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const state = useRef({ p: 0 });
+  const rendererRef = useRef<HeroRenderer | null>(null);
   const trigger = useRef<ScrollTrigger | null>(null);
   const [active, setActive] = useState(0);
   const [noGL, setNoGL] = useState(false);
@@ -81,6 +82,7 @@ export function HeroScroller({ ready, onReady }: { ready: boolean; onReady: () =
       return;
     }
 
+    rendererRef.current = renderer;
     let visible = true;
     const io = new IntersectionObserver(([e]) => { visible = e.isIntersecting; });
     io.observe(section.current!);
@@ -127,6 +129,7 @@ export function HeroScroller({ ready, onReady }: { ready: boolean; onReady: () =
       io.disconnect();
       window.removeEventListener('pointermove', onMove);
       section.current?.removeEventListener('click', onEditClick);
+      rendererRef.current = null;
       renderer.dispose();
     };
   }, [onReady]);
@@ -260,7 +263,11 @@ export function HeroScroller({ ready, onReady }: { ready: boolean; onReady: () =
       {/* soft light behind copy for legibility on every scene */}
       <div className="js-scrim pointer-events-none absolute inset-0 z-[5] bg-[radial-gradient(ellipse_55%_70%_at_12%_50%,rgba(246,232,224,0.55),transparent_70%)] max-md:bg-[linear-gradient(to_top,rgba(243,228,220,0.97)_12%,rgba(243,228,220,0.82)_40%,rgba(243,228,220,0.35)_58%,transparent_72%)]" />
 
-      <Petals count={window.matchMedia('(max-width: 768px)').matches ? 9 : 16} />
+      <Petals
+        count={window.matchMedia('(max-width: 768px)').matches ? 16 : 30}
+        getProgress={() => state.current.p}
+        project={(i, u, v) => rendererRef.current?.uvToScreen(i, u, v) ?? null}
+      />
 
       <div className="relative z-20 h-full">
         {SLIDES.map((s, i) => (
