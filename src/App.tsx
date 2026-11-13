@@ -7,6 +7,7 @@ import { ScrollIndicator } from './components/ScrollIndicator';
 import { HeroScroller } from './components/HeroScroller';
 import { Collections, Footer } from './components/Collections';
 import { DrapeSection } from './components/drape/DrapeSection';
+import { PetalCursor } from './components/PetalCursor';
 
 export default function App() {
   const [ready, setReady] = useState(false);
@@ -29,6 +30,7 @@ export default function App() {
   return (
     <>
       <Loader done={ready} />
+      <PetalCursor />
       <Nav />
       <ScrollIndicator />
       <main>

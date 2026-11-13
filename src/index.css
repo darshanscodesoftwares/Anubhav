@@ -54,3 +54,6 @@ html.lenis body { height: auto; }
   letter-spacing: 0.32em;
   text-transform: uppercase;
 }
+
+/* The rose-petal cursor (PetalCursor.tsx) replaces the system cursor on fine pointers. */
+html.petal-cursor, html.petal-cursor * { cursor: none !important; }
