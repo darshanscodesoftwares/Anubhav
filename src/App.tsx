@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { initSmoothScroll } from './lib/smooth';
+import { initSectionSnap } from './lib/sectionSnap';
 import { Nav } from './components/Nav';
 import { Loader } from './components/Loader';
 import { ScrollIndicator } from './components/ScrollIndicator';
@@ -17,6 +18,8 @@ export default function App() {
     window.scrollTo(0, 0);
     initSmoothScroll()?.stop();
   }, []);
+
+  useEffect(() => (ready ? initSectionSnap() : undefined), [ready]);
 
   const onReady = useCallback(() => {
     document.fonts.ready.then(() => {
